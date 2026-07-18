@@ -74,19 +74,22 @@ if user_input:
     
     with st.chat_message("user"):
         st.markdown(user_input)
-
-    with st.chat_message("assistant"):
-        response = st.write_stream(
-            chain.stream(
-                {
-                    "history": history,
-                    "question": user_input
-                }
+    
+    try:
+        with st.chat_message("assistant"):
+            response = st.write_stream(
+                chain.stream(
+                    {
+                        "history": history,
+                        "question": user_input
+                    }
+                )
             )
-            )
 
-    st.session_state.messages.append(
-        {"role": "assistant", "content":response}
+        st.session_state.messages.append(
+            {"role": "assistant", "content":response}
         )
     
+    except Exception as e:
+        st.error(f"Error:{e}")
 
