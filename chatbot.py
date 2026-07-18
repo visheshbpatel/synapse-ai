@@ -29,8 +29,19 @@ parser = StrOutputParser()
 
 chain = prompt | model | parser
 
-question = input("Ask a question:\n")
+print('Welcome to Synapse AI')
 
-response = chain.invoke({"question": question})
+while True:
 
-print(response)
+    user_input = input('Type your question or type exit to exit the app: \n')
+
+    if user_input.lower()=='exit':
+        print("Thank you for using the app")
+        break
+
+    else: 
+        question = user_input
+
+        response = chain.invoke({"question": question})
+
+        print(response)
