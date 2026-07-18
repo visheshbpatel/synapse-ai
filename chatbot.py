@@ -13,11 +13,14 @@ model = ChatOpenAI(
     base_url=os.getenv("OPENROUTER_BASE_URL"),
     max_tokens=300,
     temperature=0.3,
+    streaming=True
 )
+
+SYSTEM_PROMPT = "You are a helpful AI."
 
 prompt = ChatPromptTemplate.from_messages(
     [
-        ('system', 'you are a helpful AI'),
+        ('system', SYSTEM_PROMPT),
         ('human', "{question}")
     ]
 )
@@ -25,6 +28,7 @@ prompt = ChatPromptTemplate.from_messages(
 parser = StrOutputParser()
 
 chain = prompt | model | parser
+
 
 st.set_page_config(
     page_title="SynapseAI",
@@ -36,7 +40,7 @@ st.caption("Built with LangChain")
 
 
 if "messages" not in st.session_state:
-    st.session_state.messages=[]
+    st.session_state.messages = []
 
 for message in st.session_state.messages:
     with st.chat_message(message['role']):
@@ -48,13 +52,19 @@ user_input = st.chat_input("Ask Anything...")
 if user_input:
 
     st.session_state.messages.append(
-        {"role":"user", "content":user_input}
+        {"role": "user", "content":user_input}
+        )
+    
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    with st.chat_message("assistant"):
+        response = st.write_stream(
+            chain.stream({"question": user_input})
         )
 
-    response = chain.invoke({"question": user_input})
-
     st.session_state.messages.append(
-        {"role":"assistant", "content":response}
+        {"role": "assistant", "content":response}
         )
     
 
