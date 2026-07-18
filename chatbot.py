@@ -1,43 +1,36 @@
-import streamlit as st
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+from dotenv import load_dotenv
+import os
 
-st.set_page_config(
-    page_title="SynapseAI",
-    layout="wide",
+load_dotenv()
+
+model = ChatOpenAI(
+    model="openai/gpt-oss-20b:free",
+    api_key=os.getenv("OPENROUTER_API_KEY"),
+    base_url=os.getenv("OPENROUTER_BASE_URL"),
+    max_tokens=300,
+    temperature=0.3,
 )
 
+prompt = PromptTemplate.from_template(
+    """
+    You are a helpful AI assistant.
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+    Answer the following question clearly and concisely.
 
-st.title("SynapseAI")
-st.caption("An extensible AI platform built with LangChain")
+    Question:
+    {question}
+    """
+)
 
+parser = StrOutputParser()
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+chain = prompt | model | parser
 
+question = input("Ask a question:\n")
 
-if prompt := st.chat_input("Ask anything..."):
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": prompt,
-        }
-    )
+response = chain.invoke({"question": question})
 
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-
-    response = "LLM integration coming soon..."
-
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": response,
-        }
-    )
-
-    with st.chat_message("assistant"):
-        st.markdown(response)
+print(response)
