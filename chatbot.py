@@ -1,6 +1,6 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 import os
 
@@ -14,15 +14,11 @@ model = ChatOpenAI(
     temperature=0.3,
 )
 
-prompt = PromptTemplate.from_template(
-    """
-    You are a helpful AI assistant.
-
-    Answer the following question clearly and concisely.
-
-    Question:
-    {question}
-    """
+prompt = ChatPromptTemplate.from_messages(
+    [
+        ('system', 'you are a helpful AI'),
+        ('human', "{question}")
+    ]
 )
 
 parser = StrOutputParser()
@@ -40,8 +36,7 @@ while True:
         break
 
     else: 
-        question = user_input
 
-        response = chain.invoke({"question": question})
+        response = chain.invoke({"question": user_input})
 
         print(response)
