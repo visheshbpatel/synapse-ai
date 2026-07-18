@@ -1,3 +1,4 @@
+import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -25,18 +26,35 @@ parser = StrOutputParser()
 
 chain = prompt | model | parser
 
-print('Welcome to Synapse AI')
+st.set_page_config(
+    page_title="SynapseAI",
+    layout="wide"
+)
 
-while True:
+st.title("SynapseAI")
+st.caption("Built with LangChain")
 
-    user_input = input('Type your question or type exit to exit the app: \n')
 
-    if user_input.lower()=='exit':
-        print("Thank you for using the app")
-        break
+if "messages" not in st.session_state:
+    st.session_state.messages=[]
 
-    else: 
+for message in st.session_state.messages:
+    with st.chat_message(message['role']):
+        st.markdown(message['content'])
 
-        response = chain.invoke({"question": user_input})
 
-        print(response)
+user_input = st.chat_input("Ask Anything...")
+
+if user_input:
+
+    st.session_state.messages.append(
+        {"role":"user", "content":user_input}
+        )
+
+    response = chain.invoke({"question": user_input})
+
+    st.session_state.messages.append(
+        {"role":"assistant", "content":response}
+        )
+    
+
