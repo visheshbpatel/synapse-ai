@@ -1,14 +1,28 @@
 import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
+
+def build_history(messages):
+    history = []
+
+    for message in messages:
+        if message["role"] == "user":
+            history.append(HumanMessage(content=message["content"]))
+        else:
+            history.append(AIMessage(content=message["content"]))
+
+    return history
+
+
 model = ChatOpenAI(
-    model="openai/gpt-oss-20b:free",
+    model="openai/gpt-4.1-mini",
     api_key=os.getenv("OPENROUTER_API_KEY"),
     base_url=os.getenv("OPENROUTER_BASE_URL"),
     max_tokens=300,
@@ -21,6 +35,7 @@ SYSTEM_PROMPT = "You are a helpful AI."
 prompt = ChatPromptTemplate.from_messages(
     [
         ('system', SYSTEM_PROMPT),
+        MessagesPlaceholder(variable_name="history"),
         ('human', "{question}")
     ]
 )
@@ -51,6 +66,8 @@ user_input = st.chat_input("Ask Anything...")
 
 if user_input:
 
+    history = build_history(st.session_state.messages)
+
     st.session_state.messages.append(
         {"role": "user", "content":user_input}
         )
@@ -60,8 +77,13 @@ if user_input:
 
     with st.chat_message("assistant"):
         response = st.write_stream(
-            chain.stream({"question": user_input})
-        )
+            chain.stream(
+                {
+                    "history": history,
+                    "question": user_input
+                }
+            )
+            )
 
     st.session_state.messages.append(
         {"role": "assistant", "content":response}
