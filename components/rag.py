@@ -1,4 +1,5 @@
 from langchain_community.document_loaders import DirectoryLoader, TextLoader, PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def load_documents():
@@ -31,3 +32,14 @@ def load_documents():
 
 
     return documents
+
+
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size = 1000,
+    chunk_overlap = 200
+)
+
+
+def split_documents(documents):
+    return text_splitter.split_documents(documents)
+
