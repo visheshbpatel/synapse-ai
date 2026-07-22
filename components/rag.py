@@ -59,3 +59,20 @@ def create_vector_store(chunks):
     )
 
     return vector_store
+
+
+def get_retriever():
+
+    vector_store = Chroma(
+        persist_directory="data/chroma",
+        embedding_function=embeddings
+    )
+
+    retriever = vector_store.as_retriever(
+        search_type="similarity",
+        search_kwargs={
+            "k":4
+        }
+    )
+
+    return retriever
