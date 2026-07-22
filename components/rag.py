@@ -4,7 +4,19 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
 
-def load_documents():
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size = 1000,
+    chunk_overlap = 200
+)
+
+
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
+
+
+
+def _load_documents():
     
     documents = []
 
@@ -36,21 +48,13 @@ def load_documents():
     return documents
 
 
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size = 1000,
-    chunk_overlap = 200
-)
 
-
-def split_documents(documents):
+def _split_documents(documents):
     return text_splitter.split_documents(documents)
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
 
 
-def create_vector_store(chunks):
+def _create_vector_store(chunks):
 
     vector_store = Chroma.from_documents(
         documents=chunks,
@@ -59,6 +63,17 @@ def create_vector_store(chunks):
     )
 
     return vector_store
+
+
+
+def index_documents():
+
+    documents = _load_documents()
+    chunks = _split_documents(documents)
+
+    _create_vector_store(chunks)
+
+    print("Vector database indexed successfully")
 
 
 def get_retriever():
