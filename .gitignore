@@ -1,22 +1,41 @@
-# Virtual Environment
-.venv/
-
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
+*$py.class
+
+# Virtual Environment
+.venv/
+venv/
+env/
 
 # Environment Variables
 .env
 
-# Streamlit
-.streamlit/
-
 # IDE
+
 .vscode/
 .idea/
 
-# OS
+# Operating System
+
 .DS_Store
 Thumbs.db
+
+
+# Testing & Temporary Files
+
+test.py
+tests/__pycache__/
+.pytest_cache/
+
+# Streamlit
+
+.streamlit/secrets.toml
+
+# Vector Database
+
+data/chroma/
+
+# Logs
+
+*.log
