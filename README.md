@@ -1,141 +1,258 @@
-# SynapseAI
+# SynapseAI – RAG Foundation
 
-SynapseAI is a modern AI workspace built with **LangChain** and **Streamlit**.
+## Overview
 
-The project is developed by implementing LangChain concepts incrementally while building real-world AI applications. Each feature is added as a separate milestone, keeping the codebase simple, maintainable, and easy to understand.
+This PR integrates a complete Retrieval-Augmented Generation (RAG) pipeline into SynapseAI using LangChain.
 
-> **Current Status:** Early development (v0.1)
+The chatbot can now retrieve relevant information from a local knowledge base before generating responses, allowing it to answer questions grounded in indexed documents instead of relying only on the LLM.
 
 ---
 
 ## Features
 
-* Interactive chat interface built with Streamlit
-* Real-time streaming responses
-* Multi-turn conversation history
-* OpenRouter integration
-* Modern LangChain Expression Language (LCEL) pipeline
-* Clean and minimal architecture
-
----
-
-## Tech Stack
-
-* Python
-* Streamlit
-* LangChain
-* OpenRouter
-* python-dotenv
+- Modular RAG architecture
+- Offline document indexing
+- Markdown, Text, and PDF document support
+- Recursive document chunking
+- HuggingFace embeddings (`all-MiniLM-L6-v2`)
+- Chroma vector database
+- Similarity-based retrieval
+- LCEL RAG pipeline
+- Streaming responses
+- Conversation history
+- Context-aware prompting
+- Graceful handling of unknown questions
 
 ---
 
 ## Project Structure
 
 ```text
-synapse-ai/
-├── chatbot.py          # Main chatbot application
-├── .env                # Environment variables (not committed)
-├── pyproject.toml      # Project dependencies
-├── uv.lock             # Dependency lock file
-└── README.md
+components/
+├── __init__.py
+├── llm.py
+├── prompt.py
+└── rag.py
+
+scripts/
+├── __init__.py
+└── index_documents.py
+
+data/
+├── documents/
+└── chroma/
+
+chatbot.py
 ```
 
 ---
 
-## Getting Started
-
-### 1. Clone the repository
-
-```bash
-git clone <repository-url>
-cd synapse-ai
-```
-
-### 2. Create a virtual environment
-
-```bash
-uv venv
-```
-
-### 3. Activate the virtual environment
-
-**Windows**
-
-```bash
-.venv\Scripts\activate
-```
-
-**Linux / macOS**
-
-```bash
-source .venv/bin/activate
-```
-
-### 4. Install dependencies
-
-```bash
-uv sync
-```
-
-### 5. Create a `.env` file
-
-```env
-OPENROUTER_API_KEY=your_api_key
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-```
-
-### 6. Run the application
-
-```bash
-streamlit run chatbot.py
-```
-
----
-
-## LangChain Concepts Implemented
-
-* Models
-* Prompt Templates
-* ChatPromptTemplate
-* Output Parsers
-* LCEL
-* Runnables (`invoke()` and `stream()`)
-* Streaming responses
-* MessagesPlaceholder
-* Conversation history
-
----
-
-## Development Workflow
-
-This project follows a Feature Branch Workflow.
+## RAG Workflow
 
 ```text
-main
-│
-develop
-│
-feature/*
+Documents
+    │
+    ▼
+Document Loaders
+    │
+    ▼
+Text Splitter
+    │
+    ▼
+Embeddings
+    │
+    ▼
+Chroma Vector Store
+    │
+    ▼
+Retriever
+    │
+    ▼
+Prompt + Conversation History
+    │
+    ▼
+LLM
+    │
+    ▼
+Streaming Response
 ```
 
-Each feature is developed in its own branch, reviewed through a Pull Request, and merged into `develop`.
+---
+
+## Supported Document Types
+
+- Markdown (`.md`)
+- Text (`.txt`)
+- PDF (`.pdf`)
 
 ---
 
-## Roadmap
+## Components
 
-* [x] Basic chatbot
-* [x] Streamlit chat interface
-* [x] Streaming responses
-* [x] Conversation history
-* [ ] Prompt engineering
-* [ ] RAG
-* [ ] Tools
-* [ ] Agents
-* [ ] LangGraph
+### Document Loading
+
+Documents are loaded using LangChain document loaders.
+
+- DirectoryLoader
+- TextLoader
+- PyPDFLoader
 
 ---
 
-## License
+### Text Splitting
 
-This project is licensed under the MIT License.
+Documents are split using:
+
+- RecursiveCharacterTextSplitter
+
+Configuration:
+
+- Chunk Size: `1000`
+- Chunk Overlap: `200`
+
+---
+
+### Embeddings
+
+Embedding model:
+
+```
+sentence-transformers/all-MiniLM-L6-v2
+```
+
+Provider:
+
+- HuggingFace Embeddings
+
+---
+
+### Vector Store
+
+Vector database:
+
+- Chroma
+
+Persistence:
+
+```
+data/chroma/
+```
+
+---
+
+### Retrieval
+
+Retriever configuration:
+
+- Similarity Search
+- Top K = 4
+
+---
+
+### Prompt
+
+The prompt combines:
+
+- System instructions
+- Retrieved context
+- Conversation history
+- User question
+
+---
+
+### LCEL Pipeline
+
+The RAG chain is built using LangChain Expression Language (LCEL).
+
+Pipeline:
+
+```text
+Question
+      │
+      ├──────────────┐
+      ▼              ▼
+ Retriever      Original Question
+      │
+      ▼
+ Retrieved Context
+      │
+      └──────────────┐
+                     ▼
+                  Prompt
+                     │
+                     ▼
+                    LLM
+                     │
+                     ▼
+              Output Parser
+```
+
+---
+
+## Indexing
+
+Documents are indexed separately from the chatbot.
+
+Run:
+
+```bash
+uv run python -m scripts.index_documents
+```
+
+This:
+
+- Loads documents
+- Splits documents
+- Creates embeddings
+- Builds the Chroma vector database
+
+---
+
+## Chat Flow
+
+```text
+User
+   │
+   ▼
+Retriever
+   │
+   ▼
+Relevant Context
+   │
+   ▼
+Prompt
+   │
+   ▼
+LLM
+   │
+   ▼
+Response
+```
+
+---
+
+## Verification
+
+The RAG pipeline was validated by:
+
+- Retrieving information from indexed documents
+- Testing custom facts added to the knowledge base
+- Confirming unknown questions return an appropriate fallback response
+- Verifying retrieved context during development
+
+---
+
+## Future Improvements
+
+- Source citations
+- File upload from UI
+- Metadata support
+- Metadata filtering
+- MMR retrieval
+- Similarity threshold search
+- MultiQueryRetriever
+- Context compression
+- Query rewriting
+- Hybrid search
+- Incremental indexing
+- Knowledge base management
