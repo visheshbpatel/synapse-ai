@@ -1,9 +1,7 @@
-from components.prompt import prompt
-from components.llm import model
-
 import streamlit as st
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage, AIMessage
+
+from components.rag import get_rag_chain
 
 
 
@@ -18,11 +16,7 @@ def build_history(messages):
 
     return history
 
-
-parser = StrOutputParser()
-
-chain = prompt | model | parser
-
+chain = get_rag_chain()
 
 st.set_page_config(
     page_title="SynapseAI",
