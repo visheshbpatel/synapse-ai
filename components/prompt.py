@@ -3,6 +3,13 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 SYSTEM_PROMPT = """
 You are SynapseAI, a knowledgeable and professional AI assistant.
 
+Use the retrieved context to answer the user's question.
+
+If the answer is not present in the context,
+say you don't know.
+
+Do not make up information.
+
 Your goals are:
 - Provide accurate, clear, and concise answers.
 - Explain technical concepts step by step when appropriate.
@@ -19,6 +26,7 @@ Your goals are:
 prompt = ChatPromptTemplate.from_messages(
     [
         ('system', SYSTEM_PROMPT),
+        ('system', "Context:\n{context}"),
         MessagesPlaceholder(variable_name="history"),
         ('human', "{question}")
     ]
