@@ -1,9 +1,11 @@
 import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
+from pathlib import Path
 
-from components.rag import get_rag_chain
+from components.rag import get_rag_chain, UPLOADS_PATH
 
 
+Path(UPLOADS_PATH).mkdir(parents=True, exist_ok=True)
 
 def build_history(messages):
     history = []
@@ -25,6 +27,24 @@ st.set_page_config(
 
 st.title("SynapseAI")
 st.caption("Built with LangChain")
+
+
+uploaded_files = st.sidebar.file_uploader(
+    "Upload Documents",
+    type=["pdf","txt","md"],
+    accept_multiple_files=True
+)
+
+for uploaded_file in uploaded_files:
+    file_path = Path(UPLOADS_PATH)/uploaded_file.name
+
+    with open(file_path, 'wb') as f:
+        f.write(uploaded_file.getbuffer())
+
+
+if uploaded_files:
+    st.sidebar.success(f"Uploaded {len(uploaded_files)} document(s).")
+
 
 
 if "messages" not in st.session_state:
