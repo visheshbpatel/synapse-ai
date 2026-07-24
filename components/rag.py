@@ -33,16 +33,24 @@ def _load_documents(directory: str):
     
     documents = []
 
-    markdown_laoder = DirectoryLoader(
+    markdown_loader = DirectoryLoader(
         directory,
         glob="**/*.md",
-        loader_cls=TextLoader
+        loader_cls=TextLoader,
+        loader_kwargs={
+            "encoding": "utf-8",
+            "autodetect_encoding": True,
+        }
     )
 
     text_loader = DirectoryLoader(
         directory,
         glob="**/*.txt",
-        loader_cls=TextLoader
+        loader_cls=TextLoader,
+        loader_kwargs={
+            "encoding": "utf-8",
+            "autodetect_encoding": True,
+        }
     )
 
     pdf_laoder = DirectoryLoader(
@@ -51,7 +59,7 @@ def _load_documents(directory: str):
         loader_cls=PyPDFLoader
     )
 
-    documents.extend(markdown_laoder.load())
+    documents.extend(markdown_loader.load())
 
     documents.extend(text_loader.load())
 
@@ -92,7 +100,10 @@ def index_documents():
     except Exception:
         pass
 
-    documents = _load_documents(DOCUMENTS_PATH)
+    documents = (
+        _load_documents(DOCUMENTS_PATH)
+        + _load_documents(UPLOADS_PATH)
+    )
     chunks = _split_documents(documents)
 
     _create_vector_store(chunks)

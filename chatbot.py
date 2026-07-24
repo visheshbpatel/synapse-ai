@@ -2,10 +2,9 @@ import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 
-from components.rag import get_rag_chain, UPLOADS_PATH
+from components.rag import get_rag_chain, index_documents, UPLOADS_PATH
 
 
-Path(UPLOADS_PATH).mkdir(parents=True, exist_ok=True)
 
 def build_history(messages):
     history = []
@@ -35,15 +34,27 @@ uploaded_files = st.sidebar.file_uploader(
     accept_multiple_files=True
 )
 
-for uploaded_file in uploaded_files:
-    file_path = Path(UPLOADS_PATH)/uploaded_file.name
-
-    with open(file_path, 'wb') as f:
-        f.write(uploaded_file.getbuffer())
-
 
 if uploaded_files:
-    st.sidebar.success(f"Uploaded {len(uploaded_files)} document(s).")
+
+    if st.sidebar.button("Index Documents"):
+
+        Path(UPLOADS_PATH).mkdir(parents=True, exist_ok=True)
+
+        for uploaded_file in uploaded_files:
+            file_path = Path(UPLOADS_PATH)/uploaded_file.name
+
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+
+        with st.spinner("Indexing Documents..."):
+            index_documents()
+
+        st.sidebar.success(
+            f"Successfully indexed {len(uploaded_files)} documents(s)"
+        )
+
+        chain = get_rag_chain()
 
 
 
