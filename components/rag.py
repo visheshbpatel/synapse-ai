@@ -10,6 +10,9 @@ from components.prompt import prompt
 from components.llm import model
 
 
+DOCUMENTS_PATH = "data/documents"
+UPLOADS_PATH = "data/uploads"
+
 CHROMA_PATH = "data/chroma"
 COLLECTION_NAME = "synapse-ai"
 
@@ -26,24 +29,24 @@ embeddings = HuggingFaceEmbeddings(
 
 
 
-def _load_documents():
+def _load_documents(directory: str):
     
     documents = []
 
     markdown_laoder = DirectoryLoader(
-        "data/documents",
+        directory,
         glob="**/*.md",
         loader_cls=TextLoader
     )
 
     text_loader = DirectoryLoader(
-        "data/documents",
+        directory,
         glob="**/*.txt",
         loader_cls=TextLoader
     )
 
     pdf_laoder = DirectoryLoader(
-        "data/documents",
+        directory,
         glob="**/*.pdf",
         loader_cls=PyPDFLoader
     )
@@ -89,7 +92,7 @@ def index_documents():
     except Exception:
         pass
 
-    documents = _load_documents()
+    documents = _load_documents(DOCUMENTS_PATH)
     chunks = _split_documents(documents)
 
     _create_vector_store(chunks)
