@@ -3,7 +3,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 
 from components.rag import get_rag_chain, index_documents, UPLOADS_PATH
-
+from components.chat import get_chat_chain
+from components.router import router
 
 
 def build_history(messages):
@@ -17,7 +18,8 @@ def build_history(messages):
 
     return history
 
-chain = get_rag_chain()
+chat_chain = get_chat_chain()
+
 
 st.set_page_config(
     page_title="SynapseAI",
@@ -54,7 +56,6 @@ if uploaded_files:
             f"Successfully indexed {len(uploaded_files)} documents(s)"
         )
 
-        chain = get_rag_chain()
 
 
 
@@ -73,27 +74,57 @@ if user_input:
     history = build_history(st.session_state.messages)
 
     st.session_state.messages.append(
-        {"role": "user", "content":user_input}
-        )
-    
+        {
+            "role": "user",
+            "content": user_input
+        }
+    )
+
     with st.chat_message("user"):
         st.markdown(user_input)
-    
+
     try:
+
         with st.chat_message("assistant"):
-            response = st.write_stream(
-                chain.stream(
-                    {
-                        "history": history,
-                        "question": user_input
-                    }
-                )
+
+            decision = router.invoke(
+                {
+                    "history": history,
+                    "question": user_input,
+                }
             )
 
+            if decision.route == "chat":
+
+                response = st.write_stream(
+                    chat_chain.stream(
+                        {
+                            "history": history,
+                            "question": user_input,
+                        }
+                    )
+                )
+
+            else:
+
+                rag_chain = get_rag_chain()
+
+                response = st.write_stream(
+                    rag_chain.stream(
+                        {
+                            "history": history,
+                            "question": user_input,
+                        }
+                    )
+                )
+
         st.session_state.messages.append(
-            {"role": "assistant", "content":response}
+            {
+                "role": "assistant",
+                "content": response
+            }
         )
-    
+
     except Exception as e:
-        st.error(f"Error:{e}")
+        st.error(f"Error: {e}")
 
