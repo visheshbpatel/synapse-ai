@@ -2,7 +2,7 @@ import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 
-from components.rag import get_rag_chain, index_documents, UPLOADS_PATH
+from components.rag import  get_rag_response, index_documents, UPLOADS_PATH
 from components.chat import get_chat_chain
 from components.router import router
 
@@ -17,6 +17,25 @@ def build_history(messages):
             history.append(AIMessage(content=message["content"]))
 
     return history
+
+
+def display_sources(sources):
+
+    if not sources:
+        return
+
+    st.markdown("**Sources:**")
+
+    for source in sources:
+
+        if "page" in source:
+            st.markdown(
+                f"- `{source['source']}` — page {source['page']}"
+            )
+        else:
+            st.markdown(
+                f"- `{source['source']}`"
+            )
 
 chat_chain = get_chat_chain()
 
@@ -63,8 +82,14 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 for message in st.session_state.messages:
-    with st.chat_message(message['role']):
-        st.markdown(message['content'])
+
+    with st.chat_message(message["role"]):
+
+        st.markdown(message["content"])
+
+        if message["role"] == "assistant":
+
+            display_sources(message.get("sources", []))
 
 
 user_input = st.chat_input("Ask Anything...")
@@ -84,6 +109,8 @@ if user_input:
         st.markdown(user_input)
 
     try:
+
+        sources = []
 
         with st.chat_message("assistant"):
 
@@ -107,21 +134,20 @@ if user_input:
 
             else:
 
-                rag_chain = get_rag_chain()
-
-                response = st.write_stream(
-                    rag_chain.stream(
-                        {
-                            "history": history,
-                            "question": user_input,
-                        }
-                    )
+                answer_stream, sources = get_rag_response(
+                    question=user_input,
+                    history=history,
                 )
+
+                response = st.write_stream(answer_stream)
+
+                display_sources(sources)
 
         st.session_state.messages.append(
             {
                 "role": "assistant",
-                "content": response
+                "content": response,
+                "sources": sources,
             }
         )
 

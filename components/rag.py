@@ -1,4 +1,4 @@
-from operator import itemgetter
+from pathlib import Path
 
 from langchain_community.document_loaders import DirectoryLoader, TextLoader, PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -129,6 +129,12 @@ def get_retriever():
     return retriever
 
 
+def retrieve_documents(question):
+    retriever = get_retriever()
+
+    return retriever.invoke(question)
+
+
 def _format_docs(documents):
     return "\n\n".join(
         doc.page_content
@@ -137,19 +143,59 @@ def _format_docs(documents):
 
 
 
-def get_rag_chain():
+def get_sources(documents):
 
-    retriever = get_retriever()
+    sources=[]
 
-    parser = StrOutputParser()
+    for document in documents:
 
-    chain = (
+        metadata = document.metadata
+
+        source = metadata.get("source")
+
+        if not source:
+            continue
+
+        source_name = Path(source).name
+
+        page = metadata.get("page_label")
+
+        if page is not None:
+            sources.append(
+                {
+                    "source": source_name,
+                    "page": page,
+                }
+            )
+
+        else:
+            sources.append(
+                {
+                    "source": source_name
+                }
+            )
+
+    return sources
+
+
+rag_answer_chain = prompt | model | StrOutputParser()
+
+def get_rag_response(question, history):
+
+    documents = retrieve_documents(question)
+
+    context = _format_docs(documents)
+
+    answer_stream = rag_answer_chain.stream(
         {
-            "context": itemgetter("question") | retriever | _format_docs,
-            "question": itemgetter("question"),
-            "history": itemgetter("history"),
+            "context": context,
+            "question": question,
+            "history": history,
         }
-        | prompt | model | parser
     )
 
-    return chain
+    sources = get_sources(documents)
+
+    return answer_stream, sources
+
+
