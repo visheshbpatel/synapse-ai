@@ -2,9 +2,8 @@ import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 
-from components.rag import  get_rag_response, index_documents, list_documents, delete_document, UPLOADS_PATH
+from components.rag import  get_rag_response, index_documents, list_documents, delete_document, is_relevant, UPLOADS_PATH
 from components.chat import get_chat_chain
-from components.router import router
 
 
 def build_history(messages):
@@ -146,25 +145,7 @@ if user_input:
 
         with st.chat_message("assistant"):
 
-            decision = router.invoke(
-                {
-                    "history": history,
-                    "question": user_input,
-                }
-            )
-
-            if decision.route == "chat":
-
-                response = st.write_stream(
-                    chat_chain.stream(
-                        {
-                            "history": history,
-                            "question": user_input,
-                        }
-                    )
-                )
-
-            else:
+            if is_relevant(user_input):
 
                 answer_stream, sources = get_rag_response(
                     question=user_input,
@@ -174,6 +155,17 @@ if user_input:
                 response = st.write_stream(answer_stream)
 
                 display_sources(sources)
+
+            else:
+
+                response = st.write_stream(
+                    chat_chain.stream(
+                        {
+                            "history": history,
+                            "question": user_input,
+                        }
+                    )
+                )
 
         st.session_state.messages.append(
             {
