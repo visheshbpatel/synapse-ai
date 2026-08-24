@@ -20,6 +20,8 @@ COLLECTION_NAME = "synapse-ai"
 
 INDEX_STATE_PATH = "data/index_state.json"
 
+RELEVANCE_THRESHOLD = 1.0
+
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size = 1000,
@@ -516,5 +518,23 @@ def delete_document(document_path: str):
     file_path.unlink()
 
 
+def is_relevant(question: str) -> bool:
 
+    vector_store = Chroma(
+        persist_directory=CHROMA_PATH,
+        embedding_function=embeddings,
+        collection_name=COLLECTION_NAME,
+    )
+
+    results = vector_store.similarity_search_with_score(
+        question,
+        k=1,
+    )
+
+    if not results:
+        return False
+
+    _, score = results[0]
+
+    return score <= RELEVANCE_THRESHOLD
 
