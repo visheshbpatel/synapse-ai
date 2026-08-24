@@ -470,20 +470,51 @@ def _prepare_document(file_path: Path):
 
 
 
-if __name__ == "__main__":
+def list_documents() -> list[dict]:
 
-    current_state = _get_current_document_state()
-    previous_state = _load_index_state()
+    documents = []
 
-    changes = _get_document_changes(
-        current_state,
-        previous_state,
+    for file_path in _discover_documents():
+
+        documents.append(
+
+            {
+                "name": file_path.name,
+                "path": str(file_path)
+            }
+        )
+
+    return documents
+
+
+def delete_document(document_path: str):
+
+    file_path = Path(document_path)
+
+    if not file_path.exists():
+        raise FileNotFoundError(
+            f"Document not found : {file_path}"
+        )
+
+    document_id = _get_document_id(file_path)
+
+    vector_store = Chroma(
+        persist_directory=CHROMA_PATH,
+        embedding_function=embeddings,
+        collection_name=COLLECTION_NAME
     )
 
-    for change_type, documents in changes.items():
+    _delete_document(
+        vector_store,
+        document_id
+    )
 
-        print(f"\n{change_type.upper()}:")
+    state = _load_index_state()
+    state.pop(document_id, None)
+    _save_index_state(state)
 
-        for document in documents:
-            print(document)
+    file_path.unlink()
+
+
+
 
