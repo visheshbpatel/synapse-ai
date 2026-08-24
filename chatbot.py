@@ -2,7 +2,7 @@ import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 
-from components.rag import  get_rag_response, index_documents, UPLOADS_PATH
+from components.rag import  get_rag_response, index_documents, list_documents, delete_document, UPLOADS_PATH
 from components.chat import get_chat_chain
 from components.router import router
 
@@ -75,8 +75,40 @@ if uploaded_files:
             f"Successfully indexed {len(uploaded_files)} documents(s)"
         )
 
+st.sidebar.divider()
 
+st.sidebar.subheader("Documents")
 
+documents = list_documents()
+
+if documents:
+
+    for document in documents:
+
+        col1, col2 = st.sidebar.columns([4, 1])
+
+        col1.write(document["name"])
+
+        if col2.button("Delete", key=f"delete_{document['path']}"):
+
+            try:
+                delete_document(document["path"])
+
+                st.sidebar.success(
+                    f"Deleted {document['name']}"
+                )
+
+                st.rerun()
+
+            except Exception as e:
+                st.sidebar.error(
+                    f"Failed to delete {document['name']}: {e}"
+                )
+
+else:
+    st.sidebar.caption("No documents found.")
+
+    
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
