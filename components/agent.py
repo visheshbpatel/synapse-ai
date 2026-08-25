@@ -4,6 +4,7 @@ from components.llm import model
 from components.tools.time import get_current_time
 from components.tools.weather import get_weather
 from components.tools.documents import get_documents
+from components.tools.web_search import get_web_search
 
 
 def get_agent():
@@ -13,7 +14,8 @@ def get_agent():
         tools=[
             get_current_time,
             get_weather,
-            get_documents
+            get_documents,
+            get_web_search
             ]
     )
 
