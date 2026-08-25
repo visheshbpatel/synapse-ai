@@ -3,7 +3,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 
 from components.rag import  get_rag_response, index_documents, list_documents, delete_document, is_relevant, UPLOADS_PATH
-from components.chat import get_chat_chain
+from components.agent import get_agent
 
 
 def build_history(messages):
@@ -36,7 +36,7 @@ def display_sources(sources):
                 f"- `{source['source']}`"
             )
 
-chat_chain = get_chat_chain()
+agent = get_agent()
 
 
 st.set_page_config(
@@ -158,14 +158,18 @@ if user_input:
 
             else:
 
-                response = st.write_stream(
-                    chat_chain.stream(
-                        {
-                            "history": history,
-                            "question": user_input,
-                        }
-                    )
+                result = agent.invoke(
+                    {
+                        "messages": [
+                            *history,
+                            HumanMessage(content=user_input)
+                        ]
+                    }
                 )
+
+                response = result["messages"][-1].content
+
+                st.markdown(response)
 
         st.session_state.messages.append(
             {
