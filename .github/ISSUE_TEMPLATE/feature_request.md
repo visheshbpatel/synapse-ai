@@ -1,11 +1,10 @@
 ---
-
 name: Feature Request
 about: Suggest an improvement or new feature for SynapseAI
 title: "[Feature]: "
 labels: enhancement
 assignees: ""
--------------
+---
 
 ## Problem
 

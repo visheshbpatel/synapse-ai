@@ -1,11 +1,10 @@
 ---
-
 name: Bug Report
 about: Report a reproducible problem in SynapseAI
 title: "[Bug]: "
 labels: bug
 assignees: ""
--------------
+---
 
 ## Description
 
@@ -27,10 +26,10 @@ What happened instead?
 
 ## Environment
 
-* OS:
-* Python version:
-* SynapseAI branch/version:
-* Installation method:
+- OS:
+- Python version:
+- SynapseAI branch/version:
+- Installation method:
 
 ## Relevant Logs or Screenshots
 
