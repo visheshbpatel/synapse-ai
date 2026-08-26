@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
 # Virtual Environment
 .venv/
 venv/
@@ -12,30 +13,27 @@ env/
 .env
 
 # IDE
-
 .vscode/
 .idea/
 
 # Operating System
-
 .DS_Store
 Thumbs.db
 
 
 # Testing & Temporary Files
-
 test.py
 tests/__pycache__/
 .pytest_cache/
 
 # Streamlit
-
 .streamlit/secrets.toml
 
 # Vector Database
-
 data/chroma/
 
-# Logs
+# Indexing State
+data/index_state.json
 
+# Logs
 *.log
