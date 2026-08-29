@@ -179,9 +179,16 @@ def _load_index_state() -> dict:
     if not state_path.exists():
         return {}
 
-    with open(state_path, "r", encoding="utf-8") as file:
-        return json.load(file)
+    try:
+            
+        with open(state_path, "r", encoding="utf-8") as file:
+            return json.load(file)
 
+    except json.JSONDecodeError:
+
+        print(f"Warning: Invalid index state file: {state_path}")
+
+    return {}
 
 def _save_index_state(state: dict) -> None:
 
