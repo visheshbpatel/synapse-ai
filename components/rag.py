@@ -7,6 +7,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.documents import Document
 
 from components.prompt import prompt
 from components.llm import model
@@ -41,7 +42,7 @@ rag_answer_chain = prompt | model | StrOutputParser()
 
 # Vector Store
 
-def _get_vector_store():
+def _get_vector_store() -> Chroma:
 
     return Chroma(
         persist_directory=CHROMA_PATH,
@@ -78,7 +79,7 @@ def _discover_documents() -> list[Path]:
     return files
 
 
-def _load_document(file_path: Path):
+def _load_document(file_path: Path) -> list[Document]:
 
     suffix = file_path.suffix.lower()
 
@@ -101,10 +102,10 @@ def _load_document(file_path: Path):
 
 
 def _add_indexing_metadata(
-    document,
+    document: Document,
     document_id: str,
     file_hash: str,
-):
+) -> Document:
 
     document.metadata["document_id"] = document_id
     document.metadata["file_hash"] = file_hash
@@ -112,7 +113,7 @@ def _add_indexing_metadata(
     return document
 
 
-def _prepare_document(file_path: Path):
+def _prepare_document(file_path: Path) -> list[Document]:
 
     document_id = _get_document_id(file_path)
     file_hash = _get_file_hash(file_path)
@@ -131,7 +132,7 @@ def _prepare_document(file_path: Path):
     return documents
 
 
-def _split_documents(documents):
+def _split_documents(documents: list[Document]) -> list[Document]:
 
     return text_splitter.split_documents(documents)
 
@@ -154,7 +155,7 @@ def list_documents() -> list[dict]:
 
 # Index State
 
-def _get_file_hash(file_path: str) -> str:
+def _get_file_hash(file_path: Path) -> str:
 
     sha256 = hashlib.sha256()
 
@@ -166,9 +167,9 @@ def _get_file_hash(file_path: str) -> str:
     return sha256.hexdigest()
 
 
-def _get_document_id(file_path: str) -> str:
+def _get_document_id(file_path: Path) -> str:
 
-    return str(Path(file_path).resolve())
+    return str(file_path.resolve())
 
 
 def _load_index_state() -> dict:
@@ -182,7 +183,7 @@ def _load_index_state() -> dict:
         return json.load(file)
 
 
-def _save_index_state(state: dict):
+def _save_index_state(state: dict) -> None:
 
     state_path = Path(INDEX_STATE_PATH)
 
@@ -265,9 +266,9 @@ def _get_document_changes(
 # Indexing
 
 def _delete_document(
-    vector_store,
+    vector_store: Chroma,
     document_id: str,
-):
+) -> None:
 
     vector_store.delete(
         where={
@@ -277,9 +278,9 @@ def _delete_document(
 
 
 def _index_document(
-    vector_store,
+    vector_store: Chroma,
     file_path: Path,
-):
+) -> int:
 
     documents = _prepare_document(file_path)
 
@@ -294,7 +295,7 @@ def _index_document(
     return len(chunks)
 
 
-def index_documents():
+def index_documents() -> None:
 
     vector_store = _get_vector_store()
 
@@ -392,7 +393,7 @@ def index_documents():
         print("\nIndexing completed successfully")
 
 
-def delete_document(document_path: str):
+def delete_document(document_path: str) -> None:
 
     file_path = Path(document_path)
 
@@ -439,7 +440,7 @@ def get_retriever():
     return retriever
 
 
-def retrieve_documents(question):
+def retrieve_documents(question: str) -> list[Document]:
 
     retriever = get_retriever()
 
@@ -465,7 +466,7 @@ def is_relevant(question: str) -> bool:
 
 # RAG Response
 
-def _format_docs(documents):
+def _format_docs(documents: list[Document]) -> str:
 
     return "\n\n".join(
         doc.page_content
@@ -473,7 +474,7 @@ def _format_docs(documents):
     )
 
 
-def get_sources(documents):
+def get_sources(documents: list[Document]) -> list[dict]:
 
     sources = []
 
@@ -527,3 +528,4 @@ def get_rag_response(question, history):
     sources = get_sources(documents)
 
     return answer_stream, sources
+
