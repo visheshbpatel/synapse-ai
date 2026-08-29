@@ -33,64 +33,19 @@ embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
+def _get_vector_store():
 
+    vector_store = Chroma(
+            persist_directory=CHROMA_PATH,
+            embedding_function=embeddings,
+            collection_name=COLLECTION_NAME,
+        )
 
-def _load_documents(directory: str):
-    
-    documents = []
-
-    markdown_loader = DirectoryLoader(
-        directory,
-        glob="**/*.md",
-        loader_cls=TextLoader,
-        loader_kwargs={
-            "encoding": "utf-8",
-            "autodetect_encoding": True,
-        }
-    )
-
-    text_loader = DirectoryLoader(
-        directory,
-        glob="**/*.txt",
-        loader_cls=TextLoader,
-        loader_kwargs={
-            "encoding": "utf-8",
-            "autodetect_encoding": True,
-        }
-    )
-
-    pdf_loader= DirectoryLoader(
-        directory,
-        glob="**/*.pdf",
-        loader_cls=PyPDFLoader
-    )
-
-    documents.extend(markdown_loader.load())
-
-    documents.extend(text_loader.load())
-
-    documents.extend(pdf_loader.load())
-
-
-    return documents
-
+    return vector_store
 
 
 def _split_documents(documents):
     return text_splitter.split_documents(documents)
-
-
-
-def _create_vector_store(chunks):
-
-    vector_store = Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=CHROMA_PATH,
-        collection_name=COLLECTION_NAME
-    )
-
-    return vector_store
 
 
 def _index_document(vector_store, file_path: Path):
@@ -110,11 +65,7 @@ def _index_document(vector_store, file_path: Path):
 
 def index_documents():
 
-    vector_store = Chroma(
-        persist_directory=CHROMA_PATH,
-        embedding_function=embeddings,
-        collection_name=COLLECTION_NAME,
-    )
+    vector_store = _get_vector_store()
 
     failed_documents = []
 
@@ -213,11 +164,7 @@ def _delete_document(vector_store, document_id: str):
 
 def get_retriever():
 
-    vector_store = Chroma(
-        persist_directory=CHROMA_PATH,
-        embedding_function=embeddings,
-        collection_name=COLLECTION_NAME
-    )
+    vector_store = _get_vector_store()
 
     retriever = vector_store.as_retriever(
         search_type="similarity",
@@ -500,11 +447,7 @@ def delete_document(document_path: str):
 
     document_id = _get_document_id(file_path)
 
-    vector_store = Chroma(
-        persist_directory=CHROMA_PATH,
-        embedding_function=embeddings,
-        collection_name=COLLECTION_NAME
-    )
+    vector_store = _get_vector_store()
 
     _delete_document(
         vector_store,
@@ -520,11 +463,7 @@ def delete_document(document_path: str):
 
 def is_relevant(question: str) -> bool:
 
-    vector_store = Chroma(
-        persist_directory=CHROMA_PATH,
-        embedding_function=embeddings,
-        collection_name=COLLECTION_NAME,
-    )
+    vector_store = _get_vector_store()
 
     results = vector_store.similarity_search_with_score(
         question,
