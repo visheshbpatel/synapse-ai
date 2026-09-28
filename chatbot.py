@@ -143,19 +143,21 @@ if user_input:
     try:
 
         with st.chat_message("assistant"):
-
-            result = graph.invoke(
-                {
-                    "messages": [
-                        *history,
-                        HumanMessage(content=user_input),
-                    ]
-                }
+            response = st.write_stream(
+                chunk.content
+                for chunk, metadata in graph.stream(
+                    {
+                        "messages": [
+                            *history,
+                            HumanMessage(content=user_input),
+                        ]
+                    },
+                    stream_mode="messages",
+                )
+                if metadata.get("langgraph_node") == "agent"
+                and isinstance(chunk.content, str)
+                and chunk.content
             )
-
-            response = result["messages"][-1].content
-
-            st.markdown(response)
 
         st.session_state.messages.append(
             {
@@ -164,6 +166,6 @@ if user_input:
                 "sources": [],
             }
         )
-
     except Exception as e:
         st.error(f"Error: {e}")
+
