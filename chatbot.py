@@ -2,8 +2,8 @@ import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 
-from components.rag import  get_rag_response, index_documents, list_documents, delete_document, is_relevant, UPLOADS_PATH
-from components.agent import get_agent
+from components.rag import index_documents, list_documents, delete_document, UPLOADS_PATH
+from components.graph import graph
 
 
 def build_history(messages):
@@ -36,7 +36,6 @@ def display_sources(sources):
                 f"- `{source['source']}`"
             )
 
-agent = get_agent()
 
 
 st.set_page_config(
@@ -127,12 +126,14 @@ user_input = st.chat_input("Ask Anything...")
 
 if user_input:
 
-    history = build_history(st.session_state.messages)
+    history = build_history(
+        st.session_state.messages
+    )
 
     st.session_state.messages.append(
         {
             "role": "user",
-            "content": user_input
+            "content": user_input,
         }
     )
 
@@ -141,44 +142,28 @@ if user_input:
 
     try:
 
-        sources = []
-
         with st.chat_message("assistant"):
 
-            if is_relevant(user_input):
+            result = graph.invoke(
+                {
+                    "messages": [
+                        *history,
+                        HumanMessage(content=user_input),
+                    ]
+                }
+            )
 
-                answer_stream, sources = get_rag_response(
-                    question=user_input,
-                    history=history,
-                )
+            response = result["messages"][-1].content
 
-                response = st.write_stream(answer_stream)
-
-                display_sources(sources)
-
-            else:
-
-                result = agent.invoke(
-                    {
-                        "messages": [
-                            *history,
-                            HumanMessage(content=user_input)
-                        ]
-                    }
-                )
-
-                response = result["messages"][-1].content
-
-                st.markdown(response)
+            st.markdown(response)
 
         st.session_state.messages.append(
             {
                 "role": "assistant",
                 "content": response,
-                "sources": sources,
+                "sources": [],
             }
         )
 
     except Exception as e:
         st.error(f"Error: {e}")
-
