@@ -6,11 +6,7 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
-
-from components.prompt import prompt
-from components.llm import model
 
 
 # Configuration
@@ -23,7 +19,6 @@ COLLECTION_NAME = "synapse-ai"
 
 INDEX_STATE_PATH = "data/index_state.json"
 
-RELEVANCE_THRESHOLD = 1.0
 
 
 # Shared Objects
@@ -36,8 +31,6 @@ text_splitter = RecursiveCharacterTextSplitter(
 embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2",
 )
-
-rag_answer_chain = prompt | model | StrOutputParser()
 
 
 # Vector Store
@@ -454,32 +447,7 @@ def retrieve_documents(question: str) -> list[Document]:
     return retriever.invoke(question)
 
 
-def is_relevant(question: str) -> bool:
-
-    vector_store = _get_vector_store()
-
-    results = vector_store.similarity_search_with_score(
-        question,
-        k=1,
-    )
-
-    if not results:
-        return False
-
-    _, score = results[0]
-
-    return score <= RELEVANCE_THRESHOLD
-
-
-# RAG Response
-
-def _format_docs(documents: list[Document]) -> str:
-
-    return "\n\n".join(
-        doc.page_content
-        for doc in documents
-    )
-
+# Source Metadata
 
 def get_sources(documents: list[Document]) -> list[dict]:
 
@@ -516,23 +484,3 @@ def get_sources(documents: list[Document]) -> list[dict]:
             )
 
     return sources
-
-
-def get_rag_response(question, history):
-
-    documents = retrieve_documents(question)
-
-    context = _format_docs(documents)
-
-    answer_stream = rag_answer_chain.stream(
-        {
-            "context": context,
-            "question": question,
-            "history": history,
-        }
-    )
-
-    sources = get_sources(documents)
-
-    return answer_stream, sources
-
