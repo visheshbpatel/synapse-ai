@@ -53,25 +53,47 @@ uploaded_files = st.sidebar.file_uploader(
     accept_multiple_files=True
 )
 
-
 if uploaded_files:
-
     if st.sidebar.button("Index Documents"):
-
-        Path(UPLOADS_PATH).mkdir(parents=True, exist_ok=True)
+        Path(UPLOADS_PATH).mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
         for uploaded_file in uploaded_files:
-            file_path = Path(UPLOADS_PATH)/uploaded_file.name
+            file_path = Path(UPLOADS_PATH) / uploaded_file.name
 
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
         with st.spinner("Indexing Documents..."):
-            index_documents()
+            result = index_documents()
 
-        st.sidebar.success(
-            f"Successfully indexed {len(uploaded_files)} documents(s)"
-        )
+        if result["indexed"]:
+            st.sidebar.success(
+                f"Indexed: **{len(result['indexed'])}** document(s)"
+            )
+
+        if result["changed"]:
+            st.sidebar.info(
+                f"Updated: **{len(result['changed'])}** document(s)"
+            )
+
+        if result["deleted"]:
+            st.sidebar.info(
+                f"Deleted: **{len(result['deleted'])}** document(s)"
+            )
+
+        if result["unchanged"]:
+            st.sidebar.caption(
+                f"Unchanged: **{len(result['unchanged'])}** document(s)"
+            )
+
+        if result["failed"]:
+            st.sidebar.error(
+                f"Failed: **{len(result['failed'])}** document(s)"
+            )
+
 
 st.sidebar.divider()
 

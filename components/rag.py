@@ -1,6 +1,7 @@
 from pathlib import Path
 import hashlib
 import json
+from typing import TypedDict
 
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -274,6 +275,14 @@ def _get_document_changes(
 
 # Indexing
 
+class IndexResult(TypedDict):
+    indexed: list[str]
+    changed: list[str]
+    deleted: list[str]
+    unchanged: list[str]
+    failed: list[str]
+
+
 def _delete_document(
     vector_store: Chroma,
     document_id: str,
@@ -304,11 +313,17 @@ def _index_document(
     return len(chunks)
 
 
-def index_documents() -> None:
+def index_documents() -> IndexResult:
 
     vector_store = _get_vector_store()
 
-    failed_documents = []
+    result: IndexResult = {
+        "indexed": [],
+        "changed": [],
+        "deleted": [],
+        "unchanged": [],
+        "failed": [],
+    }
 
     current_state = _get_current_document_state()
     previous_state = _load_index_state()
@@ -333,15 +348,16 @@ def index_documents() -> None:
         )
 
         if chunks_indexed == 0:
-
-            failed_documents.append(str(file_path))
-            print(f"Skipping state update for: {file_path}")
-
+            result["failed"].append(str(file_path))
             continue
 
         successful_state[document["document_id"]] = {
             "file_hash": document["file_hash"],
         }
+
+        result["indexed"].append(document["document_id"])
+
+
 
     # CHANGED documents
     for document in changes["changed"]:
@@ -362,15 +378,16 @@ def index_documents() -> None:
         )
 
         if chunks_indexed == 0:
-
-            failed_documents.append(str(file_path))
-            print(f"Skipping state update for: {file_path}")
-
+            result["failed"].append(document_id)
             continue
 
         successful_state[document_id] = {
             "file_hash": document["file_hash"],
         }
+
+        result["changed"].append(document_id)
+
+
 
     # DELETED documents
     for document in changes["deleted"]:
@@ -389,17 +406,17 @@ def index_documents() -> None:
             None,
         )
 
+        result["deleted"].append(document_id)
+
+
+    # UNCHANGED documents
+    for document in changes["unchanged"]:
+        result["unchanged"].append(document["document_id"])
+
     _save_index_state(successful_state)
 
-    if failed_documents:
+    return result
 
-        print("\nIndexing completed with errors:")
-
-        for document in failed_documents:
-            print(f"  {document}")
-
-    else:
-        print("\nIndexing completed successfully")
 
 
 def delete_document(document_path: str) -> None:
@@ -455,41 +472,3 @@ def retrieve_documents(question: str) -> list[Document]:
 
     return retriever.invoke(question)
 
-
-# Source Metadata
-
-def get_sources(documents: list[Document]) -> list[dict]:
-
-    sources = []
-
-    for document in documents:
-
-        metadata = document.metadata
-
-        source = metadata.get("source")
-
-        if not source:
-            continue
-
-        source_name = Path(source).name
-
-        page = metadata.get("page_label")
-
-        if page is not None:
-
-            sources.append(
-                {
-                    "source": source_name,
-                    "page": page,
-                }
-            )
-
-        else:
-
-            sources.append(
-                {
-                    "source": source_name,
-                }
-            )
-
-    return sources
