@@ -1,6 +1,6 @@
 from typing import Annotated, TypedDict
 
-from langchain_core.messages import AnyMessage, ToolMessage
+from langchain_core.messages import AnyMessage, ToolMessage, AIMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -49,7 +49,7 @@ def stream_response(messages):
 
     def stream():
 
-        for chunk, metadata in graph.stream(
+        for chunk, _ in graph.stream(
             {"messages": messages},
             stream_mode="messages"
         ):
@@ -62,7 +62,7 @@ def stream_response(messages):
 
             
             elif (
-                metadata.get("langgraph_node") ==  "agent"
+                isinstance(chunk, AIMessage)
                 and isinstance(chunk.content, str)
                 and chunk.content
             ):
