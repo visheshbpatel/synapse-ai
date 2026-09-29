@@ -1,6 +1,6 @@
 from typing import Annotated, TypedDict
 
-from langchain_core.messages import AnyMessage
+from langchain_core.messages import AnyMessage, ToolMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -43,18 +43,32 @@ def call_agent(state: AgentState):
 
 
 def stream_response(messages):
-    """ Stream assistant response without exposing LangGraph Internals."""
+    """ Stream the assistant response and collect source artifacts."""
 
-    for chunk, metadata in graph.stream(
-        {"messages": messages},
-        stream_mode="messages"
-    ):
-        if (
-            metadata.get("langgraph_node") ==  "agent"
-            and isinstance(chunk.content, str)
-            and chunk.content
+    sources = []
+
+    def stream():
+
+        for chunk, metadata in graph.stream(
+            {"messages": messages},
+            stream_mode="messages"
         ):
-            yield chunk.content
+
+            if isinstance(chunk, ToolMessage):
+                artifact = getattr(chunk, "artifact", None)
+
+                if artifact:
+                    sources.extend(artifact)
+
+            
+            elif (
+                metadata.get("langgraph_node") ==  "agent"
+                and isinstance(chunk.content, str)
+                and chunk.content
+            ):
+                yield chunk.content
+
+    return stream(), sources
 
             
 

@@ -143,20 +143,24 @@ if user_input:
     try:
 
         with st.chat_message("assistant"):
-            response = st.write_stream(
-                stream_response(
-                    [
-                        *history,
-                        HumanMessage(content=user_input)
-                    ]
-                )
+
+            stream, sources = stream_response(
+                [
+                    *history,
+                    HumanMessage(content=user_input)
+                ]
             )
+
+            response= st.write_stream(stream)
+
+            if sources:
+                display_sources(sources)
 
         st.session_state.messages.append(
             {
                 "role": "assistant",
                 "content": response,
-                "sources": [],
+                "sources": sources
             }
         )
     except Exception as e:
