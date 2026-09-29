@@ -3,7 +3,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 
 from components.rag import index_documents, list_documents, delete_document, UPLOADS_PATH
-from components.graph import graph
+from components.graph import stream_response
 
 
 def build_history(messages):
@@ -144,19 +144,12 @@ if user_input:
 
         with st.chat_message("assistant"):
             response = st.write_stream(
-                chunk.content
-                for chunk, metadata in graph.stream(
-                    {
-                        "messages": [
-                            *history,
-                            HumanMessage(content=user_input),
-                        ]
-                    },
-                    stream_mode="messages",
+                stream_response(
+                    [
+                        *history,
+                        HumanMessage(content=user_input)
+                    ]
                 )
-                if metadata.get("langgraph_node") == "agent"
-                and isinstance(chunk.content, str)
-                and chunk.content
             )
 
         st.session_state.messages.append(

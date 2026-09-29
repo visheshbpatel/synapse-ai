@@ -42,6 +42,22 @@ def call_agent(state: AgentState):
     }
 
 
+def stream_response(messages):
+    """ Stream assistant response without exposing LangGraph Internals."""
+
+    for chunk, metadata in graph.stream(
+        {"messages": messages},
+        stream_mode="messages"
+    ):
+        if (
+            metadata.get("langgraph_node") ==  "agent"
+            and isinstance(chunk.content, str)
+            and chunk.content
+        ):
+            yield chunk.content
+
+            
+
 workflow = StateGraph(AgentState)
 
 workflow.add_node("agent", call_agent)
