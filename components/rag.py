@@ -28,9 +28,18 @@ text_splitter = RecursiveCharacterTextSplitter(
     chunk_overlap=200,
 )
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
-)
+_embeddings = None
+
+def _get_embeddings() -> HuggingFaceEmbeddings:
+    global _embeddings
+
+    if _embeddings is None:
+        _embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+        )
+
+    return _embeddings
+
 
 
 # Vector Store
@@ -39,7 +48,7 @@ def _get_vector_store() -> Chroma:
 
     return Chroma(
         persist_directory=CHROMA_PATH,
-        embedding_function=embeddings,
+        embedding_function=_get_embeddings(),
         collection_name=COLLECTION_NAME,
     )
 
