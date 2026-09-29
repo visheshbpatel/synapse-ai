@@ -1,6 +1,6 @@
 from typing import Annotated, TypedDict
 
-from langchain_core.messages import AnyMessage
+from langchain_core.messages import AnyMessage, ToolMessage, AIMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -41,6 +41,36 @@ def call_agent(state: AgentState):
         "messages": [response]
     }
 
+
+def stream_response(messages):
+    """ Stream the assistant response and collect source artifacts."""
+
+    sources = []
+
+    def stream():
+
+        for chunk, _ in graph.stream(
+            {"messages": messages},
+            stream_mode="messages"
+        ):
+
+            if isinstance(chunk, ToolMessage):
+                artifact = getattr(chunk, "artifact", None)
+
+                if artifact:
+                    sources.extend(artifact)
+
+            
+            elif (
+                isinstance(chunk, AIMessage)
+                and isinstance(chunk.content, str)
+                and chunk.content
+            ):
+                yield chunk.content
+
+    return stream(), sources
+
+            
 
 workflow = StateGraph(AgentState)
 

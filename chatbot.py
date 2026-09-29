@@ -3,7 +3,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
 
 from components.rag import index_documents, list_documents, delete_document, UPLOADS_PATH
-from components.graph import graph
+from components.graph import stream_response
 
 
 def build_history(messages):
@@ -53,25 +53,47 @@ uploaded_files = st.sidebar.file_uploader(
     accept_multiple_files=True
 )
 
-
 if uploaded_files:
-
     if st.sidebar.button("Index Documents"):
-
-        Path(UPLOADS_PATH).mkdir(parents=True, exist_ok=True)
+        Path(UPLOADS_PATH).mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
         for uploaded_file in uploaded_files:
-            file_path = Path(UPLOADS_PATH)/uploaded_file.name
+            file_path = Path(UPLOADS_PATH) / uploaded_file.name
 
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
         with st.spinner("Indexing Documents..."):
-            index_documents()
+            result = index_documents()
 
-        st.sidebar.success(
-            f"Successfully indexed {len(uploaded_files)} documents(s)"
-        )
+        if result["indexed"]:
+            st.sidebar.success(
+                f"Indexed: **{len(result['indexed'])}** document(s)"
+            )
+
+        if result["changed"]:
+            st.sidebar.info(
+                f"Updated: **{len(result['changed'])}** document(s)"
+            )
+
+        if result["deleted"]:
+            st.sidebar.info(
+                f"Deleted: **{len(result['deleted'])}** document(s)"
+            )
+
+        if result["unchanged"]:
+            st.sidebar.caption(
+                f"Unchanged: **{len(result['unchanged'])}** document(s)"
+            )
+
+        if result["failed"]:
+            st.sidebar.error(
+                f"Failed: **{len(result['failed'])}** document(s)"
+            )
+
 
 st.sidebar.divider()
 
@@ -143,27 +165,24 @@ if user_input:
     try:
 
         with st.chat_message("assistant"):
-            response = st.write_stream(
-                chunk.content
-                for chunk, metadata in graph.stream(
-                    {
-                        "messages": [
-                            *history,
-                            HumanMessage(content=user_input),
-                        ]
-                    },
-                    stream_mode="messages",
-                )
-                if metadata.get("langgraph_node") == "agent"
-                and isinstance(chunk.content, str)
-                and chunk.content
+
+            stream, sources = stream_response(
+                [
+                    *history,
+                    HumanMessage(content=user_input)
+                ]
             )
+
+            response= st.write_stream(stream)
+
+            if sources:
+                display_sources(sources)
 
         st.session_state.messages.append(
             {
                 "role": "assistant",
                 "content": response,
-                "sources": [],
+                "sources": sources
             }
         )
     except Exception as e:
