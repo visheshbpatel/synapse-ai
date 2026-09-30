@@ -1,22 +1,38 @@
 import streamlit as st
-from langchain_core.messages import HumanMessage, AIMessage
 from pathlib import Path
+from langchain_core.messages import HumanMessage, AIMessage
+import uuid
 
 from components.rag import index_documents, list_documents, delete_document, UPLOADS_PATH
-from components.graph import stream_response
+from components.graph import stream_response, graph
+from components.llm import model
 
 
-def build_history(messages):
-    history = []
+def load_conversation(thread_id):
+    config = {
+        "configurable":{
+            "thread_id": thread_id
+        }
+    }
 
-    for message in messages:
-        if message["role"] == "user":
-            history.append(HumanMessage(content=message["content"]))
-        else:
-            history.append(AIMessage(content=message["content"]))
+    state = graph.get_state(config)
 
-    return history
+    messages = []
 
+    for message in state.values.get("messages", []):
+        if isinstance(message, HumanMessage):
+            messages.append({
+                "role":"user",
+                "content": message.content
+            })
+
+        elif isinstance(message, AIMessage):
+            messages.append({
+                "role": "assistant",
+                "content": message.content
+            })
+
+    return messages
 
 def display_sources(sources):
 
@@ -36,6 +52,17 @@ def display_sources(sources):
                 f"- `{source['source']}`"
             )
 
+def generate_chat_title(user_input):
+    prompt = (
+        "Generate a short chat title from the user's message. "
+        "Use exactly 3 to 4 words. "
+        "Return only the title, with no quotes or punctuation.\n\n"
+        f"User message: {user_input}"
+    )
+
+    response = model.invoke(prompt)
+
+    return response.content.strip()
 
 
 st.set_page_config(
@@ -44,7 +71,7 @@ st.set_page_config(
 )
 
 st.title("SynapseAI")
-st.caption("Built with LangChain")
+st.caption("AI assistant with RAG, tools, and persistent conversations")
 
 
 uploaded_files = st.sidebar.file_uploader(
@@ -95,43 +122,75 @@ if uploaded_files:
             )
 
 
-st.sidebar.divider()
+if "conversations" not in st.session_state:
+    st.session_state.conversations = {}
 
-st.sidebar.subheader("Documents")
-
-documents = list_documents()
-
-if documents:
-
-    for document in documents:
-
-        col1, col2 = st.sidebar.columns([4, 1])
-
-        col1.write(document["name"])
-
-        if col2.button("Delete", key=f"delete_{document['path']}"):
-
-            try:
-                delete_document(document["path"])
-
-                st.sidebar.success(
-                    f"Deleted {document['name']}"
-                )
-
-                st.rerun()
-
-            except Exception as e:
-                st.sidebar.error(
-                    f"Failed to delete {document['name']}: {e}"
-                )
-
-else:
-    st.sidebar.caption("No documents found.")
-
-    
+if "thread_id" not in st.session_state:
+    st.session_state.thread_id = None
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+
+
+
+with st.sidebar:
+    st.divider()
+
+    if st.button("+ New Chat", use_container_width=True):
+        st.session_state.thread_id = None
+        st.session_state.messages = []
+        st.rerun()
+
+    st.divider()
+
+    st.header("Conversations")
+
+    for thread_id, conversation in reversed (st.session_state.conversations.items()):
+        if st.button(
+            conversation["title"],
+            key=f"conversation_{thread_id}",
+            use_container_width=True
+        ):
+            st.session_state.thread_id = thread_id
+            st.session_state.messages = load_conversation(thread_id)
+
+            st.rerun()
+
+    st.divider()
+
+    st.header("Documents")
+
+    documents = list_documents()
+
+    if documents:
+
+        for document in documents:
+
+            col1, col2 = st.sidebar.columns([4, 1])
+
+            col1.write(document["name"])
+
+            if col2.button("Delete", key=f"delete_{document['path']}"):
+
+                try:
+                    delete_document(document["path"])
+
+                    st.sidebar.success(
+                        f"Deleted {document['name']}"
+                    )
+
+                    st.rerun()
+
+                except Exception as e:
+                    st.sidebar.error(
+                        f"Failed to delete {document['name']}: {e}"
+                    )
+
+    else:
+        st.sidebar.caption("No documents found.")
+
+
 
 for message in st.session_state.messages:
 
@@ -145,12 +204,15 @@ for message in st.session_state.messages:
 
 
 user_input = st.chat_input("Ask Anything...")
+    
 
 if user_input:
 
-    history = build_history(
-        st.session_state.messages
-    )
+    if st.session_state.thread_id is None:
+        st.session_state.thread_id = str(uuid.uuid4())
+
+    thread_id = st.session_state.thread_id
+
 
     st.session_state.messages.append(
         {
@@ -167,10 +229,8 @@ if user_input:
         with st.chat_message("assistant"):
 
             stream, sources = stream_response(
-                [
-                    *history,
-                    HumanMessage(content=user_input)
-                ]
+                user_input,
+                st.session_state.thread_id
             )
 
             response= st.write_stream(stream)
@@ -185,6 +245,15 @@ if user_input:
                 "sources": sources
             }
         )
+
+        if thread_id not in st.session_state.conversations:
+            st.session_state.conversations[thread_id] = {
+                "title": generate_chat_title(user_input)
+            }
+
+        st.rerun()
+
+
     except Exception as e:
         st.error(f"Error: {e}")
 
