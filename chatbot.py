@@ -1,16 +1,17 @@
 import streamlit as st
 from pathlib import Path
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 import uuid
 
 from components.rag import index_documents, list_documents, delete_document, UPLOADS_PATH
 from components.graph import stream_response, graph
 from components.llm import model
+from components.conversation import create_conversation, get_conversations, get_conversation, touch_conversation
 
 
 def load_conversation(thread_id):
     config = {
-        "configurable":{
+        "configurable": {
             "thread_id": thread_id
         }
     }
@@ -18,21 +19,34 @@ def load_conversation(thread_id):
     state = graph.get_state(config)
 
     messages = []
+    pending_sources = []
 
     for message in state.values.get("messages", []):
+
         if isinstance(message, HumanMessage):
             messages.append({
-                "role":"user",
+                "role": "user",
                 "content": message.content
             })
+
+        elif isinstance(message, ToolMessage):
+            artifact = getattr(message, "artifact", None)
+
+            if artifact:
+                pending_sources.extend(artifact)
 
         elif isinstance(message, AIMessage):
-            messages.append({
-                "role": "assistant",
-                "content": message.content
-            })
+            if message.content:
+                messages.append({
+                    "role": "assistant",
+                    "content": message.content,
+                    "sources": pending_sources
+                })
+
+                pending_sources = []
 
     return messages
+
 
 def display_sources(sources):
 
@@ -51,6 +65,7 @@ def display_sources(sources):
             st.markdown(
                 f"- `{source['source']}`"
             )
+
 
 def generate_chat_title(user_input):
     prompt = (
@@ -122,16 +137,13 @@ if uploaded_files:
             )
 
 
-if "conversations" not in st.session_state:
-    st.session_state.conversations = {}
-
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = None
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-
+conversations = get_conversations()
 
 
 with st.sidebar:
@@ -146,7 +158,9 @@ with st.sidebar:
 
     st.header("Conversations")
 
-    for thread_id, conversation in reversed (st.session_state.conversations.items()):
+    for conversation in conversations:
+        thread_id = conversation["thread_id"]
+
         if st.button(
             conversation["title"],
             key=f"conversation_{thread_id}",
@@ -246,13 +260,13 @@ if user_input:
             }
         )
 
-        if thread_id not in st.session_state.conversations:
-            st.session_state.conversations[thread_id] = {
-                "title": generate_chat_title(user_input)
-            }
+        if get_conversation(thread_id) is None:
+            title = generate_chat_title(user_input)
+            create_conversation(thread_id, title)
+        else:
+            touch_conversation(thread_id)
 
         st.rerun()
-
 
     except Exception as e:
         st.error(f"Error: {e}")
