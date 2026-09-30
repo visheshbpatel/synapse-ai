@@ -1,13 +1,12 @@
 from typing import Annotated, TypedDict
-from contextlib import ExitStack
 
-from langchain_core.messages import AnyMessage, ToolMessage, AIMessage, HumanMessage
+from langchain_core.messages import AnyMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
-from langgraph.checkpoint.sqlite import SqliteSaver
 
 from components.llm import model
+
 from components.tools.documents import get_documents
 from components.tools.search_documents import search_documents
 from components.tools.time import get_current_time
@@ -43,46 +42,6 @@ def call_agent(state: AgentState):
     }
 
 
-def stream_response(user_input, thread_id):
-    """ Stream the assistant response and collect source artifacts."""
-
-    sources = []
-
-    config = {
-        "configurable": {
-            "thread_id": thread_id
-        },
-        "metadata": {
-            "thread_id": thread_id
-        }
-    }
-
-    def stream():
-
-        for chunk, _ in graph.stream(
-            {"messages": [HumanMessage(content=user_input)]},
-            config=config,
-            stream_mode="messages"
-        ):
-
-            if isinstance(chunk, ToolMessage):
-                artifact = getattr(chunk, "artifact", None)
-
-                if artifact:
-                    sources.extend(artifact)
-
-            
-            elif (
-                isinstance(chunk, AIMessage)
-                and isinstance(chunk.content, str)
-                and chunk.content
-            ):
-                yield chunk.content
-
-    return stream(), sources
-
-            
-
 workflow = StateGraph(AgentState)
 
 workflow.add_node("agent", call_agent)
@@ -101,10 +60,4 @@ workflow.add_conditional_edges(
 
 workflow.add_edge("tools", "agent")
 
-checkpointer_context = ExitStack()
-
-checkpointer = checkpointer_context.enter_context(
-    SqliteSaver.from_conn_string("data/checkpoints.db"))
-
-graph = workflow.compile(checkpointer=checkpointer)
-
+graph = workflow.compile()

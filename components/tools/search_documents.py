@@ -3,7 +3,7 @@ from langchain_core.tools import tool
 
 from components.rag import retrieve_documents
 
-@tool(response_format="content_and_artifact")
+@tool
 def search_documents(query: str) -> str:
     """Search the contents of uploaded documents for information relevant to the user's query.
     Use this when the user asks about information contained inside their documents."""
@@ -11,14 +11,10 @@ def search_documents(query: str) -> str:
     documents = retrieve_documents(query)
 
     if not documents:
-        return (
-            "No relevant information was found in the uploaded documents.",
-            []
-        )
+        return "No relevant information was found in the uploaded documents."
 
 
     results = []
-    sources = []
 
     for document in documents:
         source = document.metadata.get("source")
@@ -27,22 +23,16 @@ def search_documents(query: str) -> str:
             source = Path(source).name
 
         page = document.metadata.get("page_label")
+
         content = document.page_content
 
         if page:
             results.append(
                 f"[Source: {source}, Page: {page}] \n {content}"
             )
-            sources.append(
-                {"source":source, "page":page}
-            )
-
         else:
             results.append(
                 f"[Source: {source}] \n {content}"
             )
-            sources.append(
-                {"source":source}
-            )
 
-    return "\n\n".join(results), sources
+    return "\n\n".join(results)

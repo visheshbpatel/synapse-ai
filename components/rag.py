@@ -1,7 +1,6 @@
 from pathlib import Path
 import hashlib
 import json
-from typing import TypedDict
 
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -29,18 +28,9 @@ text_splitter = RecursiveCharacterTextSplitter(
     chunk_overlap=200,
 )
 
-_embeddings = None
-
-def _get_embeddings() -> HuggingFaceEmbeddings:
-    global _embeddings
-
-    if _embeddings is None:
-        _embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-        )
-
-    return _embeddings
-
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
+)
 
 
 # Vector Store
@@ -49,7 +39,7 @@ def _get_vector_store() -> Chroma:
 
     return Chroma(
         persist_directory=CHROMA_PATH,
-        embedding_function=_get_embeddings(),
+        embedding_function=embeddings,
         collection_name=COLLECTION_NAME,
     )
 
@@ -275,14 +265,6 @@ def _get_document_changes(
 
 # Indexing
 
-class IndexResult(TypedDict):
-    indexed: list[str]
-    changed: list[str]
-    deleted: list[str]
-    unchanged: list[str]
-    failed: list[str]
-
-
 def _delete_document(
     vector_store: Chroma,
     document_id: str,
@@ -313,17 +295,11 @@ def _index_document(
     return len(chunks)
 
 
-def index_documents() -> IndexResult:
+def index_documents() -> None:
 
     vector_store = _get_vector_store()
 
-    result: IndexResult = {
-        "indexed": [],
-        "changed": [],
-        "deleted": [],
-        "unchanged": [],
-        "failed": [],
-    }
+    failed_documents = []
 
     current_state = _get_current_document_state()
     previous_state = _load_index_state()
@@ -348,16 +324,15 @@ def index_documents() -> IndexResult:
         )
 
         if chunks_indexed == 0:
-            result["failed"].append(str(file_path))
+
+            failed_documents.append(str(file_path))
+            print(f"Skipping state update for: {file_path}")
+
             continue
 
         successful_state[document["document_id"]] = {
             "file_hash": document["file_hash"],
         }
-
-        result["indexed"].append(document["document_id"])
-
-
 
     # CHANGED documents
     for document in changes["changed"]:
@@ -378,16 +353,15 @@ def index_documents() -> IndexResult:
         )
 
         if chunks_indexed == 0:
-            result["failed"].append(document_id)
+
+            failed_documents.append(str(file_path))
+            print(f"Skipping state update for: {file_path}")
+
             continue
 
         successful_state[document_id] = {
             "file_hash": document["file_hash"],
         }
-
-        result["changed"].append(document_id)
-
-
 
     # DELETED documents
     for document in changes["deleted"]:
@@ -406,17 +380,17 @@ def index_documents() -> IndexResult:
             None,
         )
 
-        result["deleted"].append(document_id)
-
-
-    # UNCHANGED documents
-    for document in changes["unchanged"]:
-        result["unchanged"].append(document["document_id"])
-
     _save_index_state(successful_state)
 
-    return result
+    if failed_documents:
 
+        print("\nIndexing completed with errors:")
+
+        for document in failed_documents:
+            print(f"  {document}")
+
+    else:
+        print("\nIndexing completed successfully")
 
 
 def delete_document(document_path: str) -> None:
@@ -472,3 +446,41 @@ def retrieve_documents(question: str) -> list[Document]:
 
     return retriever.invoke(question)
 
+
+# Source Metadata
+
+def get_sources(documents: list[Document]) -> list[dict]:
+
+    sources = []
+
+    for document in documents:
+
+        metadata = document.metadata
+
+        source = metadata.get("source")
+
+        if not source:
+            continue
+
+        source_name = Path(source).name
+
+        page = metadata.get("page_label")
+
+        if page is not None:
+
+            sources.append(
+                {
+                    "source": source_name,
+                    "page": page,
+                }
+            )
+
+        else:
+
+            sources.append(
+                {
+                    "source": source_name,
+                }
+            )
+
+    return sources
