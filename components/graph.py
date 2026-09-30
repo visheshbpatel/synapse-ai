@@ -49,7 +49,10 @@ def stream_response(user_input, thread_id):
     sources = []
 
     config = {
-        "configurable":{
+        "configurable": {
+            "thread_id": thread_id
+        },
+        "metadata": {
             "thread_id": thread_id
         }
     }

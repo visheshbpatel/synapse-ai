@@ -1,7 +1,9 @@
 import streamlit as st
 from pathlib import Path
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langsmith import traceable
 import uuid
+
 
 from components.rag import index_documents, list_documents, delete_document, UPLOADS_PATH
 from components.graph import stream_response, graph
@@ -68,7 +70,11 @@ def display_sources(sources):
                 f"- `{source['source']}`"
             )
 
-
+@traceable(
+    name="Generate Chat Title",
+    run_type="chain",
+    tags=["chat-title"],
+)
 def generate_chat_title(user_input):
     try:
         prompt = (
