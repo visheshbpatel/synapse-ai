@@ -21,7 +21,9 @@ def load_conversation(thread_id):
     messages = []
     pending_sources = []
 
-    for message in state.values.get("messages", []):
+    messages_state = state.values.get("messages", [])
+
+    for message in messages_state:
 
         if isinstance(message, HumanMessage):
             messages.append({
@@ -68,16 +70,19 @@ def display_sources(sources):
 
 
 def generate_chat_title(user_input):
-    prompt = (
-        "Generate a short chat title from the user's message. "
-        "Use exactly 3 to 4 words. "
-        "Return only the title, with no quotes or punctuation.\n\n"
-        f"User message: {user_input}"
-    )
+    try:
+        prompt = (
+            "Generate a short chat title from the user's message. "
+            "Use exactly 3 to 4 words. "
+            "Return only the title, with no quotes or punctuation.\n\n"
+            f"User message: {user_input}"
+        )
 
-    response = model.invoke(prompt)
+        response = model.invoke(prompt)
+        return response.content.strip()
 
-    return response.content.strip()
+    except Exception:
+        return user_input[:40]
 
 
 st.set_page_config(
@@ -221,12 +226,10 @@ user_input = st.chat_input("Ask Anything...")
     
 
 if user_input:
-
     if st.session_state.thread_id is None:
         st.session_state.thread_id = str(uuid.uuid4())
 
     thread_id = st.session_state.thread_id
-
 
     st.session_state.messages.append(
         {
@@ -239,15 +242,13 @@ if user_input:
         st.markdown(user_input)
 
     try:
-
         with st.chat_message("assistant"):
-
             stream, sources = stream_response(
                 user_input,
-                st.session_state.thread_id
+                thread_id
             )
 
-            response= st.write_stream(stream)
+            response = st.write_stream(stream)
 
             if sources:
                 display_sources(sources)
