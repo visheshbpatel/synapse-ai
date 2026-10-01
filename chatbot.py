@@ -1,106 +1,131 @@
-import streamlit as st
-from pathlib import Path
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from langsmith import traceable
-import uuid
 import sqlite3
+import uuid
 
+import streamlit as st
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langsmith import traceable
 
-from components.rag import index_documents, list_documents, delete_document, get_user_paths
-from components.graph import stream_response, graph
-from components.llm import model
-from components.conversation import create_conversation, get_conversations, get_conversation, touch_conversation
-from components.user import authenticate_user, create_user
+from components.conversation import (
+    create_conversation,
+    get_conversation,
+    get_conversations,
+    touch_conversation,
+)
 from components.document import create_document
+from components.graph import graph, stream_response
+from components.llm import model
+from components.rag import (
+    delete_document,
+    get_user_paths,
+    index_documents,
+    list_documents,
+)
+from components.ui import (
+    apply_theme,
+    render_account_card,
+    render_auth_header,
+    render_brand,
+    render_hero,
+    render_section_label,
+    render_sources,
+)
+from components.user import authenticate_user, create_user
+
+
+CONVERSATION_LIST_HEIGHT = 320
+DOCUMENT_LIST_HEIGHT = 150
+DOCUMENT_LIST_SCROLL_AFTER = 4
 
 
 def render_authentication():
-    st.title("SynapseAI")
+    with st.container(key="auth"):
+        render_auth_header()
 
-    signup_tab, login_tab = st.tabs(["Sign Up", "Login"])
+        signup_tab, login_tab = st.tabs(["Sign Up", "Login"])
 
-    with signup_tab:
-        st.subheader("Create an account")
+        with signup_tab:
+            with st.form("signup_form"):
+                st.subheader("Create your account")
 
-        signup_username = st.text_input(
-            "Username",
-            key="signup_username",
-        )
-
-        signup_email = st.text_input(
-            "Email",
-            key="signup_email",
-        )
-
-        signup_password = st.text_input(
-            "Password",
-            type="password",
-            key="signup_password",
-        )
-
-        if st.button("Create account"):
-            if (
-                not signup_username
-                or not signup_email
-                or not signup_password
-            ):
-                st.error("All fields are required.")
-
-            else:
-                try:
-                    create_user(
-                        username=signup_username,
-                        email=signup_email,
-                        password=signup_password,
-                    )
-
-                    st.success(
-                        "Account created. You can now log in."
-                    )
-
-                except sqlite3.IntegrityError:
-                    st.error(
-                        "Username or email already exists."
-                    )
-
-    with login_tab:
-        st.subheader("Login")
-
-        login_email = st.text_input(
-            "Email",
-            key="login_email",
-        )
-
-        login_password = st.text_input(
-            "Password",
-            type="password",
-            key="login_password",
-        )
-
-        if st.button("Login"):
-            user = authenticate_user(
-                login_email,
-                login_password,
-            )
-
-            if user is None:
-                st.error("Invalid email or password.")
-
-            else:
-                st.session_state.user_id = user["id"]
-                st.session_state.username = user["username"]
-
-                st.success(
-                    f"Welcome, **{user['username']}**!"
+                signup_username = st.text_input(
+                    "Username",
+                    key="signup_username",
                 )
 
-                st.rerun()
+                signup_email = st.text_input(
+                    "Email",
+                    key="signup_email",
+                )
+
+                signup_password = st.text_input(
+                    "Password",
+                    type="password",
+                    key="signup_password",
+                )
+
+                submitted = st.form_submit_button(
+                    "Create account",
+                    type="primary",
+                    width="stretch",
+                )
+
+            if submitted:
+                if not signup_username or not signup_email or not signup_password:
+                    st.error("All fields are required.")
+                else:
+                    try:
+                        create_user(
+                            username=signup_username,
+                            email=signup_email,
+                            password=signup_password,
+                        )
+                        st.success("Account created. You can now log in.")
+                    except sqlite3.IntegrityError:
+                        st.error("Username or email already exists.")
+
+        with login_tab:
+            with st.form("login_form"):
+                st.subheader("Welcome back")
+
+                login_email = st.text_input(
+                    "Email",
+                    key="login_email",
+                )
+
+                login_password = st.text_input(
+                    "Password",
+                    type="password",
+                    key="login_password",
+                )
+
+                submitted = st.form_submit_button(
+                    "Login",
+                    type="primary",
+                    width="stretch",
+                )
+
+            if submitted:
+                user = authenticate_user(
+                    login_email,
+                    login_password,
+                )
+
+                if user is None:
+                    st.error("Invalid email or password.")
+                else:
+                    st.session_state.user_id = user["id"]
+                    st.session_state.username = user["username"]
+                    st.session_state.email = user["email"]
+                    st.session_state.thread_id = None
+                    st.session_state.messages = []
+
+                    st.rerun()
 
 
 def load_conversation(thread_id):
     config = {
         "configurable": {
-            "thread_id": thread_id
+            "thread_id": thread_id,
         }
     }
 
@@ -112,12 +137,13 @@ def load_conversation(thread_id):
     messages_state = state.values.get("messages", [])
 
     for message in messages_state:
-
         if isinstance(message, HumanMessage):
-            messages.append({
-                "role": "user",
-                "content": message.content
-            })
+            messages.append(
+                {
+                    "role": "user",
+                    "content": message.content,
+                }
+            )
 
         elif isinstance(message, ToolMessage):
             artifact = getattr(message, "artifact", None)
@@ -127,34 +153,17 @@ def load_conversation(thread_id):
 
         elif isinstance(message, AIMessage):
             if message.content:
-                messages.append({
-                    "role": "assistant",
-                    "content": message.content,
-                    "sources": pending_sources
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": message.content,
+                        "sources": pending_sources,
+                    }
+                )
 
                 pending_sources = []
 
     return messages
-
-
-def display_sources(sources):
-
-    if not sources:
-        return
-
-    st.markdown("**Sources:**")
-
-    for source in sources:
-
-        if "page" in source:
-            st.markdown(
-                f"- `{source['source']}` — page {source['page']}"
-            )
-        else:
-            st.markdown(
-                f"- `{source['source']}`"
-            )
 
 
 @traceable(
@@ -172,182 +181,259 @@ def generate_chat_title(user_input):
         )
 
         response = model.invoke(prompt)
+
         return response.content.strip()
 
     except Exception:
         return user_input[:40]
 
 
-st.set_page_config(
-    page_title="SynapseAI",
-    layout="wide"
-)
+def render_user_menu():
+    username = st.session_state.username or "User"
 
-
-if "user_id" not in st.session_state:
-    st.session_state.user_id = None
-
-if "username" not in st.session_state:
-    st.session_state.username = None
-
-
-if st.session_state.user_id is None:
-    render_authentication()
-    st.stop()
-
-
-st.title("SynapseAI")
-st.caption("AI assistant with RAG, tools, and persistent conversations")
-
-
-uploaded_files = st.sidebar.file_uploader(
-    "Upload Documents",
-    type=["pdf","txt","md"],
-    accept_multiple_files=True
-)
-
-if uploaded_files:
-    if st.sidebar.button("Index Documents"):
-        user_paths = get_user_paths(
-            st.session_state.user_id
+    with st.popover(
+        username,
+        icon=":material/account_circle:",
+        width="stretch",
+    ):
+        render_account_card(
+            username,
+            st.session_state.get("email"),
         )
-
-        uploads_path = user_paths["uploads"]
-
-        uploads_path.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        for uploaded_file in uploaded_files:
-            file_path = uploads_path / uploaded_file.name
-
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-
-            create_document(
-                user_id=st.session_state.user_id,
-                filename=uploaded_file.name,
-            )
-
-        with st.spinner("Indexing Documents..."):
-            result = index_documents(st.session_state.user_id)
-
-        if result["indexed"]:
-            st.sidebar.success(
-                f"Indexed: **{len(result['indexed'])}** document(s)"
-            )
-
-        if result["changed"]:
-            st.sidebar.info(
-                f"Updated: **{len(result['changed'])}** document(s)"
-            )
-
-        if result["deleted"]:
-            st.sidebar.info(
-                f"Deleted: **{len(result['deleted'])}** document(s)"
-            )
-
-        if result["unchanged"]:
-            st.sidebar.caption(
-                f"Unchanged: **{len(result['unchanged'])}** document(s)"
-            )
-
-        if result["failed"]:
-            st.sidebar.error(
-                f"Failed: **{len(result['failed'])}** document(s)"
-            )
-
-
-if "thread_id" not in st.session_state:
-    st.session_state.thread_id = None
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-conversations = get_conversations(st.session_state.user_id)
-
-
-with st.sidebar:
-    st.divider()
-
-    if st.button("+ New Chat", use_container_width=True):
-        st.session_state.thread_id = None
-        st.session_state.messages = []
-        st.rerun()
-
-    st.divider()
-
-    st.header("Conversations")
-
-    for conversation in conversations:
-        thread_id = conversation["thread_id"]
 
         if st.button(
-            conversation["title"],
-            key=f"conversation_{thread_id}",
-            use_container_width=True
+            "Log out",
+            width="stretch",
+            key="logout_button",
         ):
-            st.session_state.thread_id = thread_id
-            st.session_state.messages = load_conversation(thread_id)
+            st.session_state.user_id = None
+            st.session_state.username = None
+            st.session_state.email = None
+            st.session_state.thread_id = None
+            st.session_state.messages = []
 
             st.rerun()
 
-    st.divider()
 
-    st.header("Documents")
+def render_document_section():
+    for level, text in st.session_state.pop("index_feedback", []):
+        getattr(st, level)(text)
 
-    documents = list_documents(st.session_state.user_id)
+    uploaded_files = st.file_uploader(
+        "PDF, TXT or MD files",
+        type=["pdf", "txt", "md"],
+        accept_multiple_files=True,
+        key=f"document_uploader_{st.session_state.uploader_version}",
+    )
 
-    if documents:
+    if uploaded_files:
+        if st.button(
+            "Index Documents",
+            type="primary",
+            width="stretch",
+            key="index_documents",
+        ):
+            user_paths = get_user_paths(
+                st.session_state.user_id
+            )
 
-        for document in documents:
+            uploads_path = user_paths["uploads"]
+            uploads_path.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
 
-            col1, col2 = st.sidebar.columns([4, 1])
+            for uploaded_file in uploaded_files:
+                file_path = uploads_path / uploaded_file.name
 
-            col1.write(document["name"])
-
-            if col2.button("Delete", key=f"delete_{document['path']}"):
-
-                try:
-                    delete_document(
-                        st.session_state.user_id,
-                        document["name"],
+                with open(file_path, "wb") as file:
+                    file.write(
+                        uploaded_file.getbuffer()
                     )
 
-                    st.sidebar.success(
-                        f"Deleted {document['name']}"
+                create_document(
+                    user_id=st.session_state.user_id,
+                    filename=uploaded_file.name,
+                )
+
+            with st.spinner("Indexing documents..."):
+                result = index_documents(
+                    st.session_state.user_id
+                )
+
+            feedback = []
+
+            if result["indexed"]:
+                feedback.append(
+                    (
+                        "success",
+                        f"Indexed {len(result['indexed'])} document(s).",
                     )
+                )
 
-                    st.rerun()
-
-                except Exception as e:
-                    st.sidebar.error(
-                        f"Failed to delete {document['name']}: {e}"
+            if result["changed"]:
+                feedback.append(
+                    (
+                        "info",
+                        f"Updated {len(result['changed'])} document(s).",
                     )
+                )
 
+            if result["deleted"]:
+                feedback.append(
+                    (
+                        "info",
+                        f"Deleted {len(result['deleted'])} document(s).",
+                    )
+                )
+
+            if result["failed"]:
+                feedback.append(
+                    (
+                        "error",
+                        f"Failed {len(result['failed'])} document(s).",
+                    )
+                )
+
+            st.session_state.index_feedback = feedback
+            st.session_state.uploader_version += 1
+
+            st.rerun()
+
+    documents = list_documents(
+        st.session_state.user_id
+    )
+
+    if not documents:
+        st.caption("No documents indexed yet.")
+        return
+
+    if len(documents) > DOCUMENT_LIST_SCROLL_AFTER:
+        holder = st.container(
+            height=DOCUMENT_LIST_HEIGHT,
+            border=False,
+        )
     else:
-        st.sidebar.caption("No documents found.")
+        holder = st.container()
+
+    with holder:
+        for document in documents:
+            col1, col2 = st.columns(
+                [5, 1],
+                vertical_alignment="center",
+            )
+
+            with col1:
+                st.caption(document["name"])
+
+            with col2:
+                if st.button(
+                    "",
+                    icon=":material/close:",
+                    type="tertiary",
+                    key=f"delete_{document['path']}",
+                    help=f"Delete {document['name']}",
+                ):
+                    try:
+                        delete_document(
+                            st.session_state.user_id,
+                            document["name"],
+                        )
+
+                        st.rerun()
+
+                    except Exception as error:
+                        st.error(
+                            f"Failed to delete document: {error}"
+                        )
+
+def render_conversation_list():
+    conversations = get_conversations(
+        st.session_state.user_id
+    )
+
+    if not conversations:
+        st.caption("No conversations yet.")
+        return
+
+    with st.container(
+        height=CONVERSATION_LIST_HEIGHT,
+        border=False,
+        key="chat_history",
+    ):
+        for conversation in conversations:
+            thread_id = conversation["thread_id"]
+
+            is_active = (
+                thread_id == st.session_state.thread_id
+            )
+
+            if st.button(
+                conversation["title"],
+                key=f"conv_{thread_id}",
+                width="stretch",
+                type="primary" if is_active else "secondary",
+            ):
+                st.session_state.thread_id = thread_id
+                st.session_state.messages = (
+                    load_conversation(thread_id)
+                )
+
+                st.rerun()
 
 
+def render_sidebar():
+    with st.sidebar:
+        render_brand()
 
-for message in st.session_state.messages:
+        render_user_menu()
 
-    with st.chat_message(message["role"]):
+        with st.expander(
+            "Documents",
+            icon=":material/folder:",
+            expanded=False,
+        ):
+            render_document_section()
 
-        st.markdown(message["content"])
+        if st.button(
+            "+  New Chat",
+            type="primary",
+            width="stretch",
+            key="new_chat",
+        ):
+            st.session_state.thread_id = None
+            st.session_state.messages = []
+            st.rerun()
 
-        if message["role"] == "assistant":
+        render_section_label("Conversations")
 
-            display_sources(message.get("sources", []))
+        render_conversation_list()
 
 
-user_input = st.chat_input("Ask Anything...")
-    
+def render_chat():
+    if not st.session_state.messages:
+        render_hero()
 
-if user_input:
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+            if message["role"] == "assistant":
+                render_sources(
+                    message.get("sources", [])
+                )
+
+    user_input = st.chat_input(
+        "Ask anything..."
+    )
+
+    if not user_input:
+        return
+
     if st.session_state.thread_id is None:
-        st.session_state.thread_id = str(uuid.uuid4())
+        st.session_state.thread_id = str(
+            uuid.uuid4()
+        )
 
     thread_id = st.session_state.thread_id
 
@@ -366,34 +452,83 @@ if user_input:
             stream, sources = stream_response(
                 user_input,
                 thread_id,
-                st.session_state.user_id
+                st.session_state.user_id,
             )
 
             response = st.write_stream(stream)
 
             if sources:
-                display_sources(sources)
+                render_sources(sources)
 
         st.session_state.messages.append(
             {
                 "role": "assistant",
                 "content": response,
-                "sources": sources
+                "sources": sources,
             }
         )
 
-        if get_conversation(st.session_state.user_id, thread_id) is None:
-            title = generate_chat_title(user_input)
+        conversation = get_conversation(
+            st.session_state.user_id,
+            thread_id,
+        )
+
+        if conversation is None:
+            title = generate_chat_title(
+                user_input
+            )
+
             create_conversation(
                 user_id=st.session_state.user_id,
                 thread_id=thread_id,
                 title=title,
             )
         else:
-            touch_conversation(st.session_state.user_id, thread_id)
+            touch_conversation(
+                st.session_state.user_id,
+                thread_id,
+            )
 
         st.rerun()
 
-    except Exception as e:
-        st.error(f"Error: {e}")
+    except Exception as error:
+        st.error(
+            f"Something went wrong: {error}"
+        )
 
+
+def initialize_session():
+    defaults = {
+        "user_id": None,
+        "username": None,
+        "email": None,
+        "thread_id": None,
+        "messages": [],
+        "uploader_version": 0,
+    }
+
+    for key, value in defaults.items():
+        st.session_state.setdefault(key, value)
+
+
+def main():
+    st.set_page_config(
+        page_title="SynapseAI",
+        page_icon="S",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
+
+    apply_theme()
+    initialize_session()
+
+    if st.session_state.user_id is None:
+        render_authentication()
+        st.stop()
+
+    render_sidebar()
+    render_chat()
+
+
+if __name__ == "__main__":
+    main()
