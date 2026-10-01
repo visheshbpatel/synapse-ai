@@ -3,12 +3,98 @@ from pathlib import Path
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langsmith import traceable
 import uuid
+import sqlite3
 
 
-from components.rag import index_documents, list_documents, delete_document, UPLOADS_PATH
+from components.rag import index_documents, list_documents, delete_document, get_user_paths
 from components.graph import stream_response, graph
 from components.llm import model
 from components.conversation import create_conversation, get_conversations, get_conversation, touch_conversation
+from components.user import authenticate_user, create_user
+from components.document import create_document
+
+
+def render_authentication():
+    st.title("SynapseAI")
+
+    signup_tab, login_tab = st.tabs(["Sign Up", "Login"])
+
+    with signup_tab:
+        st.subheader("Create an account")
+
+        signup_username = st.text_input(
+            "Username",
+            key="signup_username",
+        )
+
+        signup_email = st.text_input(
+            "Email",
+            key="signup_email",
+        )
+
+        signup_password = st.text_input(
+            "Password",
+            type="password",
+            key="signup_password",
+        )
+
+        if st.button("Create account"):
+            if (
+                not signup_username
+                or not signup_email
+                or not signup_password
+            ):
+                st.error("All fields are required.")
+
+            else:
+                try:
+                    create_user(
+                        username=signup_username,
+                        email=signup_email,
+                        password=signup_password,
+                    )
+
+                    st.success(
+                        "Account created. You can now log in."
+                    )
+
+                except sqlite3.IntegrityError:
+                    st.error(
+                        "Username or email already exists."
+                    )
+
+    with login_tab:
+        st.subheader("Login")
+
+        login_email = st.text_input(
+            "Email",
+            key="login_email",
+        )
+
+        login_password = st.text_input(
+            "Password",
+            type="password",
+            key="login_password",
+        )
+
+        if st.button("Login"):
+            user = authenticate_user(
+                login_email,
+                login_password,
+            )
+
+            if user is None:
+                st.error("Invalid email or password.")
+
+            else:
+                st.session_state.user_id = user["id"]
+                st.session_state.username = user["username"]
+
+                st.success(
+                    f"Welcome, **{user['username']}**!"
+                )
+
+                st.rerun()
 
 
 def load_conversation(thread_id):
@@ -70,6 +156,7 @@ def display_sources(sources):
                 f"- `{source['source']}`"
             )
 
+
 @traceable(
     name="Generate Chat Title",
     run_type="chain",
@@ -96,6 +183,19 @@ st.set_page_config(
     layout="wide"
 )
 
+
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
+
+if "username" not in st.session_state:
+    st.session_state.username = None
+
+
+if st.session_state.user_id is None:
+    render_authentication()
+    st.stop()
+
+
 st.title("SynapseAI")
 st.caption("AI assistant with RAG, tools, and persistent conversations")
 
@@ -108,19 +208,30 @@ uploaded_files = st.sidebar.file_uploader(
 
 if uploaded_files:
     if st.sidebar.button("Index Documents"):
-        Path(UPLOADS_PATH).mkdir(
+        user_paths = get_user_paths(
+            st.session_state.user_id
+        )
+
+        uploads_path = user_paths["uploads"]
+
+        uploads_path.mkdir(
             parents=True,
-            exist_ok=True
+            exist_ok=True,
         )
 
         for uploaded_file in uploaded_files:
-            file_path = Path(UPLOADS_PATH) / uploaded_file.name
+            file_path = uploads_path / uploaded_file.name
 
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
+            create_document(
+                user_id=st.session_state.user_id,
+                filename=uploaded_file.name,
+            )
+
         with st.spinner("Indexing Documents..."):
-            result = index_documents()
+            result = index_documents(st.session_state.user_id)
 
         if result["indexed"]:
             st.sidebar.success(
@@ -154,7 +265,7 @@ if "thread_id" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-conversations = get_conversations()
+conversations = get_conversations(st.session_state.user_id)
 
 
 with st.sidebar:
@@ -186,7 +297,7 @@ with st.sidebar:
 
     st.header("Documents")
 
-    documents = list_documents()
+    documents = list_documents(st.session_state.user_id)
 
     if documents:
 
@@ -199,7 +310,10 @@ with st.sidebar:
             if col2.button("Delete", key=f"delete_{document['path']}"):
 
                 try:
-                    delete_document(document["path"])
+                    delete_document(
+                        st.session_state.user_id,
+                        document["name"],
+                    )
 
                     st.sidebar.success(
                         f"Deleted {document['name']}"
@@ -251,7 +365,8 @@ if user_input:
         with st.chat_message("assistant"):
             stream, sources = stream_response(
                 user_input,
-                thread_id
+                thread_id,
+                st.session_state.user_id
             )
 
             response = st.write_stream(stream)
@@ -267,11 +382,15 @@ if user_input:
             }
         )
 
-        if get_conversation(thread_id) is None:
+        if get_conversation(st.session_state.user_id, thread_id) is None:
             title = generate_chat_title(user_input)
-            create_conversation(thread_id, title)
+            create_conversation(
+                user_id=st.session_state.user_id,
+                thread_id=thread_id,
+                title=title,
+            )
         else:
-            touch_conversation(thread_id)
+            touch_conversation(st.session_state.user_id, thread_id)
 
         st.rerun()
 

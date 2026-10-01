@@ -1,21 +1,33 @@
+from components.context import UserContext
 from pathlib import Path
-from langchain_core.tools import tool 
+
+from langchain_core.tools import tool
+from langchain.tools import ToolRuntime
 
 from components.rag import retrieve_documents
 
-@tool(response_format="content_and_artifact")
-def search_documents(query: str) -> str:
-    """Search the contents of uploaded documents for information relevant to the user's query.
-    Use this when the user asks about information contained inside their documents."""
 
-    documents = retrieve_documents(query)
+@tool(response_format="content_and_artifact")
+def search_documents(
+    query: str,
+    runtime: ToolRuntime[UserContext],
+):
+    """Search the contents of uploaded documents for information relevant to the user's query.
+
+    Use this when the user asks about information contained inside their documents.
+    """
+    user_id = runtime.context.user_id
+
+    documents = retrieve_documents(
+        user_id,
+        query,
+    )
 
     if not documents:
         return (
             "No relevant information was found in the uploaded documents.",
-            []
+            [],
         )
-
 
     results = []
     sources = []
@@ -31,18 +43,25 @@ def search_documents(query: str) -> str:
 
         if page:
             results.append(
-                f"[Source: {source}, Page: {page}] \n {content}"
+                f"[Source: {source}, Page: {page}]\n{content}"
             )
+
             sources.append(
-                {"source":source, "page":page}
+                {
+                    "source": source,
+                    "page": page,
+                }
             )
 
         else:
             results.append(
-                f"[Source: {source}] \n {content}"
+                f"[Source: {source}]\n{content}"
             )
+
             sources.append(
-                {"source":source}
+                {
+                    "source": source,
+                }
             )
 
     return "\n\n".join(results), sources

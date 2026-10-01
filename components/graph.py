@@ -1,6 +1,8 @@
 from typing import Annotated, TypedDict
 from contextlib import ExitStack
+from langgraph.runtime import Runtime
 
+from components.context import UserContext
 from langchain_core.messages import AnyMessage, ToolMessage, AIMessage, HumanMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -43,7 +45,7 @@ def call_agent(state: AgentState):
     }
 
 
-def stream_response(user_input, thread_id):
+def stream_response(user_input, thread_id, user_id):
     """ Stream the assistant response and collect source artifacts."""
 
     sources = []
@@ -62,6 +64,7 @@ def stream_response(user_input, thread_id):
         for chunk, _ in graph.stream(
             {"messages": [HumanMessage(content=user_input)]},
             config=config,
+            context=UserContext(user_id=user_id),
             stream_mode="messages"
         ):
 
@@ -83,7 +86,11 @@ def stream_response(user_input, thread_id):
 
             
 
-workflow = StateGraph(AgentState)
+workflow = StateGraph(
+    AgentState,
+    context_schema=UserContext,
+)
+
 
 workflow.add_node("agent", call_agent)
 workflow.add_node("tools", ToolNode(tools))

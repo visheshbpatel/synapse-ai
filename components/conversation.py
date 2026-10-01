@@ -18,27 +18,30 @@ def init_conversations_table():
         connection.commit()
 
 
-def create_conversation(user_id, thread_id, title,):
+def create_conversation(user_id, thread_id, title):
     with get_connection() as connection:
         connection.execute(
             """
-            INSERT INTO conversations (thread_id, title)
+            INSERT INTO conversations (user_id, thread_id, title)
             VALUES (?, ?, ?)
             """,
-            (user_id, thread_id, title, )
+            (user_id, thread_id, title),
         )
         connection.commit()
 
 
-def get_conversations():
+def get_conversations(user_id):
     with get_connection() as connection:
         cursor = connection.execute(
             """
             SELECT thread_id, title, created_at, updated_at
             FROM conversations
+            WHERE user_id = ?
             ORDER BY updated_at DESC
-            """
+            """,
+            (user_id,),
         )
+
         return [
             {
                 "thread_id": row[0],
@@ -50,16 +53,17 @@ def get_conversations():
         ]
 
 
-def get_conversation(thread_id):
+def get_conversation(user_id, thread_id):
     with get_connection() as connection:
         cursor = connection.execute(
             """
             SELECT thread_id, title, created_at, updated_at
             FROM conversations
-            WHERE thread_id = ?
+            WHERE user_id = ? AND thread_id = ?
             """,
-            (thread_id,)
+            (user_id, thread_id),
         )
+
         row = cursor.fetchone()
 
         if row is None:
@@ -73,28 +77,28 @@ def get_conversation(thread_id):
         }
 
 
-def update_conversation(thread_id, title):
+def update_conversation(user_id, thread_id, title):
     with get_connection() as connection:
         connection.execute(
             """
             UPDATE conversations
             SET title = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE thread_id = ?
+            WHERE user_id = ? AND thread_id = ?
             """,
-            (title, thread_id)
+            (title, user_id, thread_id),
         )
         connection.commit()
 
 
-def touch_conversation(thread_id):
+def touch_conversation(user_id, thread_id):
     with get_connection() as connection:
         connection.execute(
             """
             UPDATE conversations
             SET updated_at = CURRENT_TIMESTAMP
-            WHERE thread_id = ?
+            WHERE user_id = ? AND thread_id = ?
             """,
-            (thread_id,)
+            (user_id, thread_id),
         )
         connection.commit()
 
