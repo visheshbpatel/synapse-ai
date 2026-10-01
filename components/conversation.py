@@ -1,17 +1,4 @@
-import sqlite3
-from pathlib import Path
-
-
-DB_PATH = "data/checkpoints.db"
-
-
-def get_connection():
-    Path(DB_PATH).parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    return sqlite3.connect(DB_PATH)
+from components.database import get_connection
 
 
 def init_conversations_table():
@@ -26,7 +13,6 @@ def init_conversations_table():
             )
             """
         )
-
         connection.commit()
 
 
@@ -39,7 +25,6 @@ def create_conversation(thread_id, title):
             """,
             (thread_id, title)
         )
-
         connection.commit()
 
 
@@ -52,7 +37,6 @@ def get_conversations():
             ORDER BY updated_at DESC
             """
         )
-
         return [
             {
                 "thread_id": row[0],
@@ -74,7 +58,6 @@ def get_conversation(thread_id):
             """,
             (thread_id,)
         )
-
         row = cursor.fetchone()
 
         if row is None:
@@ -98,7 +81,6 @@ def update_conversation(thread_id, title):
             """,
             (title, thread_id)
         )
-
         connection.commit()
 
 
@@ -112,7 +94,6 @@ def touch_conversation(thread_id):
             """,
             (thread_id,)
         )
-
         connection.commit()
 
 
