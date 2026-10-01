@@ -7,23 +7,25 @@ def init_conversations_table():
             """
             CREATE TABLE IF NOT EXISTS conversations (
                 thread_id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
                 title TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
             )
             """
         )
         connection.commit()
 
 
-def create_conversation(thread_id, title):
+def create_conversation(user_id, thread_id, title,):
     with get_connection() as connection:
         connection.execute(
             """
             INSERT INTO conversations (thread_id, title)
-            VALUES (?, ?)
+            VALUES (?, ?, ?)
             """,
-            (thread_id, title)
+            (user_id, thread_id, title, )
         )
         connection.commit()
 
