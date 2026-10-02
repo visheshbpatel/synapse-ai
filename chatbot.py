@@ -448,6 +448,7 @@ def render_chat():
         st.markdown(user_input)
 
     try:
+
         with st.chat_message("assistant"):
             stream, sources = stream_response(
                 user_input,

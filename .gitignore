@@ -35,8 +35,5 @@ data/chroma/
 # Indexing State
 data/index_state.json
 
-# checkpointers
-data/checkpoints.db
-
 # Logs
 *.log

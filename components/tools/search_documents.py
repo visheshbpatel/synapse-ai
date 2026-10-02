@@ -39,6 +39,7 @@ def search_documents(
             source = Path(source).name
 
         page = document.metadata.get("page_label")
+
         content = document.page_content
 
         if page:
@@ -64,4 +65,4 @@ def search_documents(
                 }
             )
 
-    return "\n\n".join(results), sources
+    return "\n\n".join(results)

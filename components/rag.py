@@ -288,7 +288,6 @@ class IndexResult(TypedDict):
     unchanged: list[str]
     failed: list[str]
 
-
 def _delete_document(
     vector_store: Chroma,
     document_id: str,
@@ -333,6 +332,8 @@ def index_documents(user_id: int) -> IndexResult:
         "unchanged": [],
         "failed": [],
     }
+
+    failed_documents = []
 
     current_state = _get_current_document_state(user_id)
     previous_state = _load_index_state(user_id)
@@ -447,8 +448,15 @@ def index_documents(user_id: int) -> IndexResult:
         successful_state,
     )
 
-    return result
+    if failed_documents:
 
+        print("\nIndexing completed with errors:")
+
+        for document in failed_documents:
+            print(f"  {document}")
+
+    else:
+        print("\nIndexing completed successfully")
 
 def delete_document(
     user_id: int,

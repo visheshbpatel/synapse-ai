@@ -7,9 +7,9 @@ from langchain_core.messages import AnyMessage, ToolMessage, AIMessage, HumanMes
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
-from langgraph.checkpoint.sqlite import SqliteSaver
 
 from components.llm import model
+
 from components.tools.documents import get_documents
 from components.tools.search_documents import search_documents
 from components.tools.time import get_current_time
@@ -108,10 +108,4 @@ workflow.add_conditional_edges(
 
 workflow.add_edge("tools", "agent")
 
-checkpointer_context = ExitStack()
-
-checkpointer = checkpointer_context.enter_context(
-    SqliteSaver.from_conn_string("data/checkpoints.db"))
-
-graph = workflow.compile(checkpointer=checkpointer)
-
+graph = workflow.compile()
