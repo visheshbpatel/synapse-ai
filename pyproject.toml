@@ -22,4 +22,5 @@ dependencies = [
     "streamlit>=1.59.2",
     "tavily-python>=0.8.0",
     "torchvision>=0.28.0",
+    "langsmith>=0.10.5",
 ]

@@ -77,19 +77,6 @@ def get_conversation(user_id, thread_id):
         }
 
 
-def update_conversation(user_id, thread_id, title):
-    with get_connection() as connection:
-        connection.execute(
-            """
-            UPDATE conversations
-            SET title = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE user_id = ? AND thread_id = ?
-            """,
-            (title, user_id, thread_id),
-        )
-        connection.commit()
-
-
 def touch_conversation(user_id, thread_id):
     with get_connection() as connection:
         connection.execute(
