@@ -14,6 +14,7 @@ dependencies = [
     "langchain-text-splitters",
     "langgraph>=1.2.9",
     "langgraph-checkpoint-sqlite>=3.1.1",
+    "langsmith>=0.10.5",
     "pwdlib[argon2]>=0.3.1",
     "pypdf>=6.14.2",
     "python-dotenv>=1.2.2",
@@ -22,5 +23,4 @@ dependencies = [
     "streamlit>=1.59.2",
     "tavily-python>=0.8.0",
     "torchvision>=0.28.0",
-    "langsmith>=0.10.5",
 ]
