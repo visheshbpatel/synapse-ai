@@ -65,4 +65,4 @@ def search_documents(
                 }
             )
 
-    return "\n\n".join(results)
+    return "\n\n".join(results), sources

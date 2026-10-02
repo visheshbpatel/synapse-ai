@@ -458,6 +458,8 @@ def index_documents(user_id: int) -> IndexResult:
     else:
         print("\nIndexing completed successfully")
 
+    return result
+
 def delete_document(
     user_id: int,
     filename: str,
