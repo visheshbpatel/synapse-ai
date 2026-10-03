@@ -304,6 +304,9 @@ After starting SynapseAI:
 * Chroma data and SQLite databases are local application data and are ignored by Git.
 * API keys must be kept in `.env` and should never be committed.
 
+
+live Link: https://synapse-ai-vbp.streamlit.app/
+
 ## License
 
 SynapseAI is licensed under the MIT License.
