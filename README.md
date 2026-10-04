@@ -4,6 +4,15 @@ SynapseAI is a Streamlit-based AI assistant built with LangChain and LangGraph.
 
 It combines conversational AI with document search, web search, weather and time tools, persistent conversations, user authentication, and per-user document storage.
 
+## Demo
+
+See SynapseAI in action:
+
+https://github.com/user-attachments/assets/c8fa5558-82db-43e9-b147-e6ff7c8776f6
+
+#### Live Link : [**SynapseAI**](https://synapse-ai-vbp.streamlit.app/)
+
+
 ## Features
 
 * Conversational AI with streaming responses
@@ -304,8 +313,6 @@ After starting SynapseAI:
 * Chroma data and SQLite databases are local application data and are ignored by Git.
 * API keys must be kept in `.env` and should never be committed.
 
-
-live Link: https://synapse-ai-vbp.streamlit.app/
 
 ## License
 
