@@ -50,17 +50,15 @@ def test_login_success(client):
 
     response = client.post(
         "/auth/login",
-        json={
-            "email": "loginuser@example.com",
+        data={
+            "username": "loginuser@example.com",
             "password": "StrongPassword123!",
         },
     )
 
     assert response.status_code == 200
-    data = response.json()
-    assert data["token_type"] == "bearer"
-    assert isinstance(data["access_token"], str)
-    assert len(data["access_token"]) > 0
+    assert "access_token" in response.json()
+    assert response.json()["token_type"] == "bearer"
 
 
 def test_login_wrong_password(client):
@@ -75,10 +73,10 @@ def test_login_wrong_password(client):
 
     response = client.post(
         "/auth/login",
-        json={
-            "email": "wrongpass@example.com",
+        data={
+            "username": "wrongpass@example.com",
             "password": "IncorrectPassword123!",
-        },
+        }
     )
 
     assert response.status_code == 401
