@@ -1,5 +1,6 @@
 import sqlite3
 import uuid
+from pathlib import Path
 
 import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -123,6 +124,14 @@ def render_authentication():
 
 
 def load_conversation(thread_id):
+    conversation = get_conversation(
+        st.session_state.user_id,
+        thread_id,
+    )
+
+    if conversation is None:
+        return []
+
     config = {
         "configurable": {
             "thread_id": thread_id,
@@ -244,17 +253,13 @@ def render_document_section():
             )
 
             for uploaded_file in uploaded_files:
-                file_path = uploads_path / uploaded_file.name
+                filename = Path(uploaded_file.name).name
+                file_path = uploads_path / filename
 
                 with open(file_path, "wb") as file:
-                    file.write(
-                        uploaded_file.getbuffer()
-                    )
+                    file.write(uploaded_file.getbuffer())
 
-                create_document(
-                    user_id=st.session_state.user_id,
-                    filename=uploaded_file.name,
-                )
+                create_document(user_id=st.session_state.user_id, filename=filename)
 
             with st.spinner("Indexing documents..."):
                 result = index_documents(
@@ -430,6 +435,8 @@ def render_chat():
     if not user_input:
         return
 
+    is_existing_chat = st.session_state.thread_id is not None
+
     if st.session_state.thread_id is None:
         st.session_state.thread_id = str(
             uuid.uuid4()
@@ -448,6 +455,15 @@ def render_chat():
         st.markdown(user_input)
 
     try:
+        if is_existing_chat:
+            conversation = get_conversation(
+                st.session_state.user_id,
+                thread_id,
+            )
+
+            if conversation is None:
+                st.error("Conversation not found.")
+                return
 
         with st.chat_message("assistant"):
             stream, sources = stream_response(

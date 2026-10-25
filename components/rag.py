@@ -388,30 +388,40 @@ def index_documents(user_id: int) -> IndexResult:
             f"Updating document: {file_path}"
         )
 
-        _delete_document(
-            vector_store,
-            document_id,
-        )
+        try:
+            chunks_indexed = _index_document(
+                vector_store,
+                file_path,
+                user_id,
+            )
 
-        chunks_indexed = _index_document(
-            vector_store,
-            file_path,
-            user_id,
-        )
+            if chunks_indexed == 0:
+                result["failed"].append(
+                    document_id
+                )
+                continue
 
-        if chunks_indexed == 0:
+            _delete_document(
+                vector_store,
+                document_id,
+            )
+
+            successful_state[document_id] = {
+                "file_hash": document["file_hash"],
+            }
+
+            result["changed"].append(
+                document_id
+            )
+
+        except Exception as error:
+            print(
+                f"Failed to update document: {file_path} — {error}"
+            )
+
             result["failed"].append(
                 document_id
             )
-            continue
-
-        successful_state[document_id] = {
-            "file_hash": document["file_hash"],
-        }
-
-        result["changed"].append(
-            document_id
-        )
 
     # Deleted documents
 
@@ -448,17 +458,18 @@ def index_documents(user_id: int) -> IndexResult:
         successful_state,
     )
 
-    if failed_documents:
-
+    if result["failed"]:
         print("\nIndexing completed with errors:")
 
-        for document in failed_documents:
+        for document in result["failed"]:
             print(f"  {document}")
 
     else:
         print("\nIndexing completed successfully")
 
     return result
+
+
 
 def delete_document(
     user_id: int,

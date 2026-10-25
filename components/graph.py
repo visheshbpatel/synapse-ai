@@ -1,9 +1,16 @@
 from typing import Annotated, TypedDict
 from contextlib import ExitStack
-from langgraph.runtime import Runtime
+
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 from components.context import UserContext
-from langchain_core.messages import AnyMessage, ToolMessage, AIMessage, HumanMessage
+
+from langchain_core.messages import (
+    AnyMessage,
+    ToolMessage,
+    AIMessage,
+    HumanMessage,
+)
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -46,7 +53,7 @@ def call_agent(state: AgentState):
 
 
 def stream_response(user_input, thread_id, user_id):
-    """ Stream the assistant response and collect source artifacts."""
+    """Stream the assistant response and collect source artifacts."""
 
     sources = []
 
@@ -74,7 +81,6 @@ def stream_response(user_input, thread_id, user_id):
                 if artifact:
                     sources.extend(artifact)
 
-            
             elif (
                 isinstance(chunk, AIMessage)
                 and isinstance(chunk.content, str)
@@ -84,7 +90,6 @@ def stream_response(user_input, thread_id, user_id):
 
     return stream(), sources
 
-            
 
 workflow = StateGraph(
     AgentState,
@@ -108,4 +113,15 @@ workflow.add_conditional_edges(
 
 workflow.add_edge("tools", "agent")
 
-graph = workflow.compile()
+
+checkpointer_context = ExitStack()
+
+checkpointer = checkpointer_context.enter_context(
+    SqliteSaver.from_conn_string(
+        "data/checkpoints.db"
+    )
+)
+
+graph = workflow.compile(
+    checkpointer=checkpointer
+)
