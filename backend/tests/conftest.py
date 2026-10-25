@@ -1,14 +1,20 @@
+import os
+from pathlib import Path
 
 import pytest
+from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from alembic import command
 from app import models  # noqa: F401
 from app.config import get_settings
 from app.db import get_db
 from app.main import app
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture(scope="session")
@@ -28,18 +34,28 @@ def test_engine():
         pytest.fail("API tests require PostgreSQL.")
 
     if test_url.host == app_url.host:
-        pytest.fail(
-            "Test and development databases must use different Neon branch hosts."
-        )
+        pytest.fail("Test and development databases must use different branch hosts.")
 
-    engine = create_engine(
-        settings.test_database_url,
-        pool_pre_ping=True,
-    )
+    engine = create_engine(settings.test_database_url, pool_pre_ping=True)
 
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
+
+        previous_url = os.environ.get("DATABASE_URL")
+        os.environ["DATABASE_URL"] = settings.test_database_url
+        get_settings.cache_clear()
+
+        try:
+            config = Config(str(BACKEND_DIR / "alembic.ini"))
+            command.upgrade(config, "head")
+        finally:
+            if previous_url is None:
+                os.environ.pop("DATABASE_URL", None)
+            else:
+                os.environ["DATABASE_URL"] = previous_url
+            get_settings.cache_clear()
+
     except Exception:
         engine.dispose()
         raise
@@ -62,6 +78,12 @@ def db_session(test_engine):
         session = session_factory()
 
         try:
+            connection.execute(
+                text(
+                    "TRUNCATE users, documents, chunks, conversations, api_keys "
+                    "RESTART IDENTITY CASCADE"
+                )
+            )
             yield session
         finally:
             session.close()

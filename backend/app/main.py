@@ -1,25 +1,24 @@
 from fastapi import FastAPI
-from sqlalchemy import text
+from fastapi.middleware.cors import CORSMiddleware
 
-from app.db import SessionLocal
+from app.config import get_settings
 from app.routers.auth import router as auth_router
+from app.routers.health import router as health_router
+
+settings = get_settings()
 
 app = FastAPI(
     title="SynapseAI API",
-    version="0.2.0",
+    version="0.1.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(health_router)
 app.include_router(auth_router)
-
-
-@app.get("/health", tags=["Health"])
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.get("/health/ready", tags=["Health"])
-def readiness_check() -> dict[str, str]:
-    with SessionLocal() as db:
-        db.execute(text("SELECT 1"))
-
-    return {"status": "ok", "database": "connected"}

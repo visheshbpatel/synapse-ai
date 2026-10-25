@@ -1,10 +1,19 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserRegister(BaseModel):
-    username: str = Field(min_length=3, max_length=50)
+    username: str = Field(min_length=3, max_length=30, pattern=r"^[a-z0-9_]+$")
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def normalize_username(cls, value: str) -> str:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
 
 
 class UserLogin(BaseModel):
@@ -18,7 +27,7 @@ class UserResponse(BaseModel):
     id: int
     username: str
     email: EmailStr
-    is_active: bool
+    created_at: datetime
 
 
 class TokenResponse(BaseModel):

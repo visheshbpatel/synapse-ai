@@ -26,18 +26,12 @@ from app.db import Base
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String(50), unique=True)
     email: Mapped[str] = mapped_column(String(255), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default=text("true")
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -64,9 +58,7 @@ class User(Base):
 class Document(Base):
     __tablename__ = "documents"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -88,9 +80,7 @@ class Document(Base):
     )
     error: Mapped[str | None] = mapped_column(Text)
     embedding_model: Mapped[str | None] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -98,9 +88,7 @@ class Document(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint(
-            "user_id", "filename", name="uq_documents_user_filename"
-        ),
+        UniqueConstraint("user_id", "filename", name="uq_documents_user_filename"),
         UniqueConstraint("id", "user_id", name="uq_documents_id_user"),
         CheckConstraint("size_bytes >= 0", name="ck_documents_size_nonnegative"),
         CheckConstraint("chunk_count >= 0", name="ck_documents_chunks_nonnegative"),
@@ -121,9 +109,7 @@ class Document(Base):
 class Chunk(Base):
     __tablename__ = "chunks"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     document_id: Mapped[int] = mapped_column(Integer, nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -140,9 +126,7 @@ class Chunk(Base):
         TSVECTOR,
         Computed("to_tsvector('english', content)", persisted=True),
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -151,9 +135,7 @@ class Chunk(Base):
             ondelete="CASCADE",
             name="fk_chunks_document_owner",
         ),
-        UniqueConstraint(
-            "document_id", "chunk_index", name="uq_chunks_document_index"
-        ),
+        UniqueConstraint("document_id", "chunk_index", name="uq_chunks_document_index"),
         CheckConstraint("chunk_index >= 0", name="ck_chunks_index_nonnegative"),
         Index("ix_chunks_user_id", "user_id"),
         Index("ix_chunks_document_id", "document_id"),
@@ -173,21 +155,19 @@ class Chunk(Base):
 class Conversation(Base):
     __tablename__ = "conversations"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
     title: Mapped[str] = mapped_column(
-        String(255), nullable=False, default="New conversation",
+        String(255),
+        nullable=False,
+        default="New conversation",
         server_default=text("'New conversation'"),
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -208,9 +188,7 @@ class Conversation(Base):
 class APIKey(Base):
     __tablename__ = "api_keys"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -218,18 +196,10 @@ class APIKey(Base):
         index=True,
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    key_hash: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False
-    )
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     prefix: Mapped[str] = mapped_column(String(12), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    last_used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
-    revoked_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped["User"] = relationship(back_populates="api_keys")

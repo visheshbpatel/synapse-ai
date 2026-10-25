@@ -1,20 +1,19 @@
 from typing import Annotated
 
-import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import User
-from app.security import decode_access_token
+from app.security import InvalidTokenError, decode_access_token
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+bearer_scheme = HTTPBearer()
 
 
 def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
     unauthorized = HTTPException(
@@ -24,9 +23,8 @@ def get_current_user(
     )
 
     try:
-        payload = decode_access_token(token)
-        user_id = int(payload["sub"])
-    except (jwt.InvalidTokenError, KeyError, TypeError, ValueError):
+        user_id = decode_access_token(credentials.credentials)
+    except InvalidTokenError:
         raise unauthorized from None
 
     user = db.scalar(select(User).where(User.id == user_id))
